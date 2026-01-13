@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[80vh] gap-8">
+    
+    <div class="text-center">
+        <h1 class="text-3xl font-bold font-mono">REMOTE</h1>
+        <p class="text-white/40 text-xs">Control WebPlay on PC</p>
+    </div>
+
+    <!-- Status -->
+    <div id="status" class="px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-mono">
+        Disconnected
+    </div>
+
+    <!-- Controls -->
+    <div class="glass-panel p-8 rounded-3xl grid grid-cols-3 gap-6 w-full max-w-xs">
+        
+        <!-- Row 1 -->
+        <button onclick="sendCmd('seek', -10)" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+            <span class="material-icons-round text-3xl">replay_10</span>
+        </button>
+        <button onclick="sendCmd('playpause')" class="aspect-square rounded-2xl bg-nothingRed text-white flex items-center justify-center shadow-lg shadow-nothingRed/30 active:scale-90 transition scale-110">
+            <span class="material-icons-round text-4xl">play_arrow</span>
+        </button>
+        <button onclick="sendCmd('seek', 10)" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+            <span class="material-icons-round text-3xl">forward_10</span>
+        </button>
+
+        <!-- Row 2 -->
+        <button onclick="sendCmd('vol', -0.1)" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+            <span class="material-icons-round text-3xl">volume_down</span>
+        </button>
+        <button onclick="sendCmd('mute')" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+            <span class="material-icons-round text-3xl">volume_off</span>
+        </button>
+        <button onclick="sendCmd('vol', 0.1)" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+            <span class="material-icons-round text-3xl">volume_up</span>
+        </button>
+        
+        <!-- Row 3 -->
+         <button onclick="sendCmd('prev')" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+            <span class="material-icons-round text-3xl">skip_previous</span>
+        </button>
+         <div class="flex items-center justify-center">
+             <span class="material-icons-round text-white/10 text-4xl">gamepad</span>
+         </div>
+         <button onclick="sendCmd('next')" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+            <span class="material-icons-round text-3xl">skip_next</span>
+        </button>
+    </div>
+    
+    <div class="w-full max-w-xs px-4">
+        <input type="text" id="roomCode" placeholder="Enter Room Code (Default: webplay)" value="webplay" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center mb-2">
+        <button onclick="connectSocket()" class="w-full bg-white/10 py-3 rounded-xl hover:bg-white/20 transition">Connect</button>
+    </div>
+
+</div>
+
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script>
+    let socket;
+    
+    function connectSocket() {
+        const room = document.getElementById('roomCode').value;
+        socket = io();
+        
+        socket.on('connect', () => {
+            document.getElementById('status').innerText = "Connected: " + room;
+            document.getElementById('status').className = "px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-mono";
+            socket.emit('join', {room: room});
+        });
+    }
+
+    function sendCmd(action, value=null) {
+        if(!socket) return alert("Connect first!");
+        const room = document.getElementById('roomCode').value;
+        socket.emit('remote_cmd', {room: room, action: action, value: value});
+        
+        // Vibration feedback
+        if(navigator.vibrate) navigator.vibrate(50);
+    }
+    
+    // Auto Connect
+    connectSocket();
+</script>
+{% endblock %}

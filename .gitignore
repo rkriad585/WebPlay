@@ -1,0 +1,7 @@
+__pycache__/
+core/__pycache__
+*.pyc
+webplay.db
+webplay_settings.json
+.webplay_cache/
+.env
