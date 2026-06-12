@@ -6,3 +6,4 @@ webplay_settings.json
 .webplay_cache/
 .env
 .pytest_cache/
+AGENTS.md
