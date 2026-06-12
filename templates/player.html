@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" integrity="sha384-FDFJN4eDoTbFzL8KHLAOmtAicPaFc44D0JrdAwgO91ZDgGmAHrcpMWLCwTxBSVI7" crossorigin="anonymous" />
 <style>
     :root { --plyr-color-main: #D71920; }
     .plyr--video { border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
@@ -81,8 +81,8 @@
     </div>
 </div>
 
-<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
-<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="https://cdn.plyr.io/3.7.8/plyr.js" integrity="sha384-h7DbRbV9+m2ei8I957w+aTG5uTe4ZGvd81tIHJKueVXOAvqW7FSN/MB5ujB4MHUu" crossorigin="anonymous"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js" integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4" crossorigin="anonymous"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const player = new Plyr('#player', {
