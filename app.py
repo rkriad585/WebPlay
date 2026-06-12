@@ -4,7 +4,10 @@ import sqlite3
 import subprocess
 import signal
 import atexit
+import threading
+import select
 import click
+from contextlib import contextmanager
 from functools import wraps
 from flask import Flask, render_template, request, Response, send_file, jsonify, abort
 from flask_socketio import SocketIO, emit, join_room
@@ -18,13 +21,21 @@ app.config.from_object(Config)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 ffmpeg_processes = []
+ffmpeg_lock = threading.Lock()
+
+@contextmanager
+def get_db():
+    conn = sqlite3.connect(app.config['DATABASE_PATH'])
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 def init_db():
-    conn = sqlite3.connect(app.config['DATABASE_PATH'])
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS playback (path TEXT PRIMARY KEY, time REAL, finished INTEGER)''')
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS playback (path TEXT PRIMARY KEY, time REAL, finished INTEGER)''')
+        conn.commit()
 
 Config.ensure_dirs()
 init_db()
@@ -44,13 +55,14 @@ def require_auth(f):
     return decorated
 
 def cleanup_ffmpeg():
-    for proc in ffmpeg_processes[:]:
-        try:
-            proc.kill()
-            proc.wait(timeout=2)
-        except Exception:
-            pass
-    ffmpeg_processes.clear()
+    with ffmpeg_lock:
+        for proc in ffmpeg_processes[:]:
+            try:
+                proc.kill()
+                proc.wait(timeout=2)
+            except Exception:
+                pass
+        ffmpeg_processes.clear()
 
 atexit.register(cleanup_ffmpeg)
 signal.signal(signal.SIGTERM, lambda sig, frame: cleanup_ffmpeg())
@@ -118,13 +130,13 @@ def player():
 
     start_time = 0
     try:
-        conn = sqlite3.connect(app.config['DATABASE_PATH'])
-        c = conn.cursor()
-        c.execute("SELECT time FROM playback WHERE path=?", (file_path,))
-        row = c.fetchone()
-        start_time = row[0] if row else 0
-        conn.close()
-    except Exception: pass
+        with get_db() as conn:
+            c = conn.cursor()
+            c.execute("SELECT time FROM playback WHERE path=?", (file_path,))
+            row = c.fetchone()
+            start_time = row[0] if row else 0
+    except Exception:
+        log_error(f"Failed to load playback state for {file_path}")
 
     next_video = None
     parent_dir = os.path.dirname(file_path)
@@ -184,21 +196,27 @@ def stream():
                    '-f', 'mp4', '-']
 
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            ffmpeg_processes.append(process)
+            with ffmpeg_lock:
+                ffmpeg_processes.append(process)
             try:
                 while True:
-                    if request.environ.get('wsgi.input_terminated') or request.environ.get('werkzeug.server.shutdown'):
-                        break
+                    r, _, _ = select.select([process.stdout], [], [], 1.0)
+                    if not r:
+                        continue
                     data = process.stdout.read(1024 * 1024)
-                    if not data: break
+                    if not data:
+                        break
                     yield data
+            except GeneratorExit:
+                pass
             finally:
                 process.kill()
                 process.wait(timeout=5)
-                try:
-                    ffmpeg_processes.remove(process)
-                except ValueError:
-                    pass
+                with ffmpeg_lock:
+                    try:
+                        ffmpeg_processes.remove(process)
+                    except ValueError:
+                        pass
         return Response(generate(), mimetype='video/mp4')
 
 @app.route('/thumbnail')
@@ -246,11 +264,8 @@ def save_progress():
     if not file_path or play_time is None:
         return jsonify(success=False, error="Missing path or time"), 400
     try:
-        conn = sqlite3.connect(app.config['DATABASE_PATH'])
-        c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO playback (path, time, finished) VALUES (?, ?, 0)", (file_path, play_time))
-        conn.commit()
-        conn.close()
+        with get_db() as conn:
+            conn.execute("INSERT OR REPLACE INTO playback (path, time, finished) VALUES (?, ?, 0)", (file_path, play_time))
     except Exception:
         return jsonify(success=False, error="Database error"), 500
     return jsonify(success=True)
