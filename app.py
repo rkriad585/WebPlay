@@ -2,8 +2,10 @@ import os
 import secrets
 import sqlite3
 import subprocess
+import signal
+import atexit
 import click
-import json
+from functools import wraps
 from flask import Flask, render_template, request, Response, send_file, jsonify, abort
 from flask_socketio import SocketIO, emit, join_room
 
@@ -13,35 +15,67 @@ from config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
-# Allow CORS for remote control
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Database Setup
+ffmpeg_processes = []
+
 def init_db():
-    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
-    db_path = db_uri.replace('sqlite:///', '') if db_uri.startswith('sqlite:///') else 'webplay.db'
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(app.config['DATABASE_PATH'])
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS playback (path TEXT PRIMARY KEY, time REAL, finished INTEGER)''')
     conn.commit()
     conn.close()
 
+Config.ensure_dirs()
 init_db()
 CURRENT_ROOT = Config.load_settings()
 
-@app.route('/')
-def index():
-    auth_key = request.args.get('key')
-    required_key = app.config.get('API_KEY')
-    if required_key and auth_key != required_key: return render_template('error.html'), 403
+def require_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        required_key = app.config.get('API_KEY')
+        if required_key:
+            auth_key = request.args.get('key')
+            if auth_key != required_key:
+                if request.path.startswith('/api/'):
+                    return jsonify(success=False, error="Unauthorized"), 403
+                return render_template('error.html'), 403
+        return f(*args, **kwargs)
+    return decorated
 
+def cleanup_ffmpeg():
+    for proc in ffmpeg_processes[:]:
+        try:
+            proc.kill()
+            proc.wait(timeout=2)
+        except Exception:
+            pass
+    ffmpeg_processes.clear()
+
+atexit.register(cleanup_ffmpeg)
+signal.signal(signal.SIGTERM, lambda sig, frame: cleanup_ffmpeg())
+
+def _validate_media_path(path):
+    if not path:
+        return None
+    resolved = os.path.realpath(path)
+    root = os.path.realpath(CURRENT_ROOT)
+    if not resolved.startswith(root):
+        return None
+    if not os.path.exists(resolved):
+        return None
+    return resolved
+
+@app.route('/')
+@require_auth
+def index():
     view_mode = request.args.get('view', 'grid')
     browse_mode = request.args.get('mode', 'folders')
     search_query = request.args.get('q', '').lower()
     target_folder = request.args.get('folder')
-    
+
     all_media = get_media_files(CURRENT_ROOT)
-    
+
     if search_query:
         browse_mode = 'all'
         media = [m for m in all_media if search_query in m['name'].lower()]
@@ -51,38 +85,47 @@ def index():
             parent_dir = os.path.dirname(m['path'])
             folder_name = os.path.basename(parent_dir) or "Root"
             if parent_dir not in folders_dict:
-                folders_dict[parent_dir] = {'name': folder_name, 'path': parent_dir, 'count': 0, 'items': [], 'latest_thumb': m['path']}
-            folders_dict[parent_dir]['count'] += 1
-            folders_dict[parent_dir]['items'].append(m)
+                folders_dict[parent_dir] = {
+                    'name': folder_name, 'path': parent_dir, 'count': 0,
+                    'items': [], 'latest_thumb': m['path'] if m['type'] == 'video' else None
+                }
+            d = folders_dict[parent_dir]
+            d['count'] += 1
+            d['items'].append(m)
+            if m['type'] == 'video' and d['latest_thumb'] is None:
+                d['latest_thumb'] = m['path']
+        for d in folders_dict.values():
+            if d['latest_thumb'] is None and d['items']:
+                d['latest_thumb'] = d['items'][0]['path']
         media = sorted(list(folders_dict.values()), key=lambda x: x['name'].lower())
     elif browse_mode == 'specific_folder' and target_folder:
         media = sorted([m for m in all_media if os.path.dirname(m['path']) == target_folder], key=lambda x: x['name'].lower())
     else:
         media = sorted(all_media, key=lambda x: x['name'].lower())
 
-    return render_template('index.html', media=media, view=view_mode, mode=browse_mode, 
+    return render_template('index.html', media=media, view=view_mode, mode=browse_mode,
                            target_folder_name=os.path.basename(target_folder) if target_folder else "Library", root=CURRENT_ROOT)
 
 @app.route('/player')
+@require_auth
 def player():
-    file_path = request.args.get('path')
-    if not file_path or not os.path.exists(file_path): return "File not found", 404
-        
+    file_path = _validate_media_path(request.args.get('path'))
+    if not file_path: return "File not found", 404
+
     meta = get_video_metadata(file_path)
     base_name = os.path.splitext(file_path)[0]
     has_sub = os.path.exists(base_name + '.srt')
-    
+
     start_time = 0
     try:
-        conn = sqlite3.connect('webplay.db')
+        conn = sqlite3.connect(app.config['DATABASE_PATH'])
         c = conn.cursor()
         c.execute("SELECT time FROM playback WHERE path=?", (file_path,))
         row = c.fetchone()
         start_time = row[0] if row else 0
         conn.close()
-    except: pass
+    except Exception: pass
 
-    # Generate next video link for Binge Mode
     next_video = None
     parent_dir = os.path.dirname(file_path)
     siblings = sorted([f for f in os.listdir(parent_dir) if f.lower().endswith(('.mp4','.mkv','.avi','.webm'))])
@@ -91,28 +134,34 @@ def player():
         curr_idx = siblings.index(fname)
         if curr_idx + 1 < len(siblings):
             next_video = os.path.join(parent_dir, siblings[curr_idx + 1])
-    except: pass
+    except (ValueError, OSError): pass
 
-    return render_template('player.html', path=file_path, meta=meta, has_sub=has_sub, 
+    return render_template('player.html', path=file_path, meta=meta, has_sub=has_sub,
                            start_time=start_time, filename=fname, next_video=next_video)
 
 @app.route('/remote')
+@require_auth
 def remote_ui():
-    """Renders the smartphone remote interface."""
     return render_template('remote.html')
 
 @app.route('/stream')
+@require_auth
 def stream():
-    path = request.args.get('path')
-    audio_idx = request.args.get('audio_index', default=0, type=int) # New: Audio selection
-    if not path or not os.path.exists(path): abort(404)
+    path = _validate_media_path(request.args.get('path'))
+    audio_idx = request.args.get('audio_index', default=0, type=int)
+    if not path: abort(404)
 
     ext = os.path.splitext(path)[1].lower()
-    
-    # Direct play if MP4 and no specific audio track requested (default 0)
+
+    mime_map = {
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+    }
+    mime = mime_map.get(ext, 'video/mp4')
+
     if ext in ['.mp4', '.webm'] and audio_idx == 0:
         range_header = request.headers.get('Range', None)
-        if not range_header: return send_file(path)
+        if not range_header: return send_file(path, mimetype=mime)
         size = os.path.getsize(path)
         byte1, byte2 = 0, None
         m = range_header.replace('bytes=', '').split('-')
@@ -123,98 +172,132 @@ def stream():
         with open(path, 'rb') as f:
             f.seek(byte1)
             data = f.read(length)
-        rv = Response(data, 206, mimetype='video/mp4', direct_passthrough=True)
+        rv = Response(data, 206, mimetype=mime, direct_passthrough=True)
         rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(byte1, byte1 + length - 1, size))
         return rv
     else:
-        # Transcode with specific Audio Map
         def generate():
-            # -map 0:v:0 -> Map first video stream
-            # -map 0:a:audio_idx -> Map selected audio stream
-            cmd = ['ffmpeg', '-re', '-i', path, 
-                   '-map', '0:v:0', '-map', f'0:a:{audio_idx}?', 
+            cmd = ['ffmpeg', '-re', '-i', path,
+                   '-map', '0:v:0', '-map', f'0:a:{audio_idx}?',
                    '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
-                   '-c:a', 'aac', '-movflags', 'frag_keyframe+empty_moov', 
+                   '-c:a', 'aac', '-movflags', 'frag_keyframe+empty_moov',
                    '-f', 'mp4', '-']
-            
-            # Hardware accel flags (optional try)
-            # cmd.insert(1, '-hwaccel')
-            # cmd.insert(2, 'auto')
 
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            ffmpeg_processes.append(process)
             try:
                 while True:
+                    if request.environ.get('wsgi.input_terminated') or request.environ.get('werkzeug.server.shutdown'):
+                        break
                     data = process.stdout.read(1024 * 1024)
                     if not data: break
                     yield data
             finally:
                 process.kill()
+                process.wait(timeout=5)
+                try:
+                    ffmpeg_processes.remove(process)
+                except ValueError:
+                    pass
         return Response(generate(), mimetype='video/mp4')
 
 @app.route('/thumbnail')
+@require_auth
 def thumbnail():
-    path = request.args.get('path')
-    timestamp = request.args.get('t', '00:00:10') # For Scrubbing/Preview
-    if not path or not os.path.exists(path): return "", 404
-    
-    # Check Cache (only for default timestamp)
+    path = _validate_media_path(request.args.get('path'))
+    timestamp = request.args.get('t', '00:00:10')
+    if not path: return "", 404
+
     if timestamp == '00:00:10':
         cached = get_cached_thumbnail(path)
         if cached: return send_file(cached)
 
     try:
         cmd = ['ffmpeg', '-ss', timestamp, '-i', path, '-vframes', '1', '-q:v', '5', '-vf', 'scale=480:-1', '-f', 'image2', '-']
-        out, _ = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).communicate()
-        
-        # Save to cache if it's the main thumb
-        if timestamp == '00:00:10' and out:
+        out, _ = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).communicate(timeout=30)
+
+        if not out:
+            return "", 404
+
+        if timestamp == '00:00:10':
             save_thumbnail_to_cache(path, out)
-            
+
         return Response(out, mimetype='image/jpeg')
-    except: return "", 404 
+    except Exception:
+        return "", 404
 
 @app.route('/subtitle')
+@require_auth
 def get_subtitle():
-    path = request.args.get('path')
+    path = _validate_media_path(request.args.get('path'))
     if not path: return "", 404
     base = os.path.splitext(path)[0]
     if os.path.exists(base+'.srt'): return Response(convert_srt_to_vtt(base+'.srt'), mimetype='text/vtt')
     return "", 404
 
 @app.route('/api/save_progress', methods=['POST'])
+@require_auth
 def save_progress():
     data = request.json
+    if not data:
+        return jsonify(success=False, error="Invalid request"), 400
+    file_path = data.get('path')
+    play_time = data.get('time')
+    if not file_path or play_time is None:
+        return jsonify(success=False, error="Missing path or time"), 400
     try:
-        conn = sqlite3.connect('webplay.db')
+        conn = sqlite3.connect(app.config['DATABASE_PATH'])
         c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO playback (path, time, finished) VALUES (?, ?, 0)", (data.get('path'), data.get('time')))
+        c.execute("INSERT OR REPLACE INTO playback (path, time, finished) VALUES (?, ?, 0)", (file_path, play_time))
         conn.commit()
         conn.close()
-    except: pass
+    except Exception:
+        return jsonify(success=False, error="Database error"), 500
     return jsonify(success=True)
 
 @app.route('/api/rename', methods=['POST'])
+@require_auth
 def rename_file():
     data = request.json
-    old_path, new_name = data.get('old_path'), data.get('new_name')
-    if not old_path or not new_name or not os.path.exists(old_path): return jsonify(success=False)
+    old_path = _validate_media_path(data.get('old_path') if data else None)
+    new_name_raw = data.get('new_name') if data else None
+    if not old_path or not new_name_raw:
+        return jsonify(success=False), 400
     directory = os.path.dirname(old_path)
-    safe_name = "".join([c for c in new_name if c.isalpha() or c.isdigit() or c in " ._-"]).strip()
+    ext = os.path.splitext(old_path)[1]
+    safe_name = "".join([c for c in new_name_raw if c.isalpha() or c.isdigit() or c in " ._-"]).strip()
+    if not safe_name:
+        return jsonify(success=False, message="Invalid name"), 400
+    name_no_ext = safe_name[:-len(ext)] if safe_name.lower().endswith(ext.lower()) else safe_name
+    new_path = os.path.join(directory, name_no_ext + ext)
+    if os.path.exists(new_path):
+        return jsonify(success=False, message="Target file already exists"), 409
     try:
-        os.rename(old_path, os.path.join(directory, safe_name + os.path.splitext(old_path)[1]))
-        return jsonify(success=True, new_path=os.path.join(directory, safe_name + os.path.splitext(old_path)[1]))
-    except str as e: return jsonify(success=False, message=str(e))
+        os.rename(old_path, new_path)
+        return jsonify(success=True, new_path=new_path)
+    except Exception as e:
+        log_error(f"Rename failed: {e}")
+        return jsonify(success=False, message="Rename failed"), 500
 
-# --- SOCKET IO EVENTS ---
+@socketio.on('connect')
+def on_connect():
+    required_key = app.config.get('API_KEY')
+    if required_key:
+        key = request.args.get('key')
+        if not key or key != required_key:
+            return False
+
 @socketio.on('join')
 def on_join(data):
+    if not data or 'room' not in data:
+        return
     room = data['room']
     join_room(room)
-    # log_info(f"Client joined room: {room}")
 
 @socketio.on('remote_cmd')
 def handle_remote(data):
-    # data = {action: 'play'|'pause'|'seek', value: ...}
+    if not data or 'room' not in data or 'action' not in data:
+        return
     emit('player_event', data, to=data['room'])
 
 @click.group()

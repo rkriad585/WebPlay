@@ -4,18 +4,24 @@
 <style>
     :root { --plyr-color-main: #D71920; }
     .plyr--video { border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
-    .meta-tag { @apply px-2 py-0.5 rounded bg-white/10 border border-white/5 text-[10px] md:text-xs font-mono text-white/70; }
+    .meta-tag {
+        display: inline-flex; align-items: center; gap: 0.25rem;
+        padding: 0.125rem 0.5rem; border-radius: 0.25rem;
+        background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.05);
+        font-size: 0.75rem; font-family: 'Share Tech Mono', monospace; color: rgba(255,255,255,0.7);
+    }
+    @media (min-width: 768px) {
+        .meta-tag { font-size: 0.75rem; }
+    }
 </style>
 
 <div class="max-w-6xl mx-auto">
-    <!-- Top Bar: Back & Audio Selector -->
     <div class="flex justify-between items-center mb-4">
         {% set k = '&key=' + request.args.get('key') if request.args.get('key') else '' %}
         <a href="/?mode=folders{{ k }}" class="inline-flex items-center gap-2 text-white/50 hover:text-white transition text-sm">
             <span class="material-icons-round text-sm">arrow_back</span> Library
         </a>
 
-        <!-- Audio Track Selector -->
         {% if meta.audio_tracks|length > 1 %}
         <div class="relative group">
             <button class="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg border border-white/10 text-xs font-mono hover:bg-white/10">
@@ -32,10 +38,8 @@
         {% endif %}
     </div>
 
-    <!-- Video Container -->
     <div class="glass-panel p-0.5 md:p-1 rounded-3xl mb-6 relative group">
         <video id="player" playsinline controls crossorigin>
-            <!-- Check URL param for audio index -->
             <source src="/stream?path={{ path }}&audio_index={{ request.args.get('audio_index', 0) }}" type="video/mp4" />
             {% if has_sub %}
             <track kind="captions" label="English" src="/subtitle?path={{ path }}" srclang="en" default />
@@ -43,7 +47,6 @@
         </video>
     </div>
 
-    <!-- Info Section & Buttons -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="md:col-span-2 space-y-4">
             <div class="flex items-start justify-between gap-4">
@@ -57,9 +60,9 @@
                     </button>
                 </div>
             </div>
-            
+
             <div class="flex flex-wrap gap-2">
-                <span class="meta-tag flex items-center gap-1"><span class="material-icons-round text-[10px]">aspect_ratio</span> {{ meta.resolution }}</span>
+                <span class="meta-tag"><span class="material-icons-round text-[10px]">aspect_ratio</span> {{ meta.resolution }}</span>
                 <span class="meta-tag">{{ meta.codec }}</span>
                 <span class="meta-tag">{{ meta.duration }}</span>
                 {% if meta.audio_tracks|length > 0 %}
@@ -85,76 +88,68 @@
         const player = new Plyr('#player', {
             controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
             keyboard: { focused: true, global: true },
-            // Add preview thumbnails logic (simple implementation)
             tooltips: { controls: true, seek: true }
         });
 
-        // 1. Resume
         const storedTime = {{ start_time }};
         if (storedTime > 0) player.once('ready', () => player.currentTime = storedTime);
 
-        // 2. Save Progress
         const saveProgress = () => {
-            if(player.currentTime > 5) {
+            if (player.currentTime > 5) {
                 $.ajax({
                     url: '/api/save_progress', type: 'POST', contentType: 'application/json',
-                    data: JSON.stringify({ path: '{{ path }}', time: player.currentTime })
+                    data: JSON.stringify({ path: {{ path | tojson }}, time: player.currentTime })
                 });
             }
         };
         player.on('pause', saveProgress);
         window.addEventListener('beforeunload', saveProgress);
 
-        // 3. Socket / Remote / Party
-        const socket = io();
+        const urlParams = new URLSearchParams(window.location.search);
+        const socket = io({ query: { key: urlParams.get('key') || '' } });
         socket.on('connect', () => socket.emit('join', {room: 'webplay'}));
-        
+
         socket.on('player_event', (data) => {
-            console.log("Remote Command:", data);
-            if(data.action === 'playpause') player.togglePlay();
-            if(data.action === 'seek') player.forward(data.value);
-            if(data.action === 'vol') player.increaseVolume(data.value);
-            if(data.action === 'mute') player.muted = !player.muted;
-            if(data.action === 'next' && nextVideoUrl) window.location.href = nextVideoUrl;
+            if (data.action === 'playpause') player.togglePlay();
+            if (data.action === 'seek') player.currentTime = Math.max(0, player.currentTime + data.value);
+            if (data.action === 'vol') player.volume = Math.max(0, Math.min(1, player.volume + data.value));
+            if (data.action === 'mute') player.muted = !player.muted;
+            if (data.action === 'next' && nextVideoUrl) window.location.href = nextVideoUrl;
         });
 
-        // 4. Binge Mode (Auto Next)
-        const nextVideoUrl = "{{ ('/player?path=' + next_video + k) if next_video else '' }}";
+        {% if next_video %}
+        {% set next_url = '/player?path=' + next_video + k %}
+        const nextVideoUrl = {{ next_url | tojson }};
         player.on('ended', () => {
-            if(nextVideoUrl) {
-                // Toast notification
-                alert("Next episode playing in 3 seconds...");
-                setTimeout(() => window.location.href = nextVideoUrl, 3000);
-            }
+            setTimeout(() => window.location.href = nextVideoUrl, 3000);
         });
+        {% endif %}
 
-        // 5. Picture in Picture
         window.togglePiP = () => {
             if (document.pictureInPictureElement) document.exitPictureInPicture();
             else if (document.pictureInPictureEnabled) player.media.requestPictureInPicture();
         }
-        
-        // 6. Media Session API (Background Play)
+
         if ('mediaSession' in navigator) {
             navigator.mediaSession.metadata = new MediaMetadata({
-                title: '{{ filename }}',
+                title: {{ filename | tojson }},
                 artist: 'WebPlay',
-                artwork: [{ src: '/thumbnail?path={{ path }}' }]
+                artwork: [{ src: {{ ('/thumbnail?path=' + path) | tojson }} }]
             });
-             navigator.mediaSession.setActionHandler('play', () => player.play());
-             navigator.mediaSession.setActionHandler('pause', () => player.pause());
-             navigator.mediaSession.setActionHandler('previoustrack', () => player.rewind(10));
-             navigator.mediaSession.setActionHandler('nexttrack', () => player.forward(10));
+            navigator.mediaSession.setActionHandler('play', () => player.play());
+            navigator.mediaSession.setActionHandler('pause', () => player.pause());
+            navigator.mediaSession.setActionHandler('previoustrack', () => { player.currentTime = Math.max(0, player.currentTime - 10); });
+            navigator.mediaSession.setActionHandler('nexttrack', () => { player.currentTime += 10; });
         }
     });
 
     function openRenameModal() {
-        const newName = prompt("Rename:", "{{ filename }}");
+        const newName = prompt("Rename:", {{ filename | tojson }});
         if (newName) {
             $.ajax({
                 url: '/api/rename', type: 'POST', contentType: 'application/json',
-                data: JSON.stringify({ old_path: '{{ path }}', new_name: newName }),
-                success: (r) => { if(r.success) window.location.reload(); }
+                data: JSON.stringify({ old_path: {{ path | tojson }}, new_name: newName }),
+                success: (r) => { if (r.success) window.location.reload(); }
             });
         }
     }

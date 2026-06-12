@@ -6,20 +6,27 @@ CACHE_DIR = os.path.join(os.getcwd(), '.webplay_cache')
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-key-webplay-secure'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///webplay.db'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
-    # Create cache dir if not exists
-    if not os.path.exists(CACHE_DIR):
-        os.makedirs(CACHE_DIR)
+    DATABASE_PATH = 'webplay.db'
+
+    @staticmethod
+    def ensure_dirs():
+        if not os.path.exists(CACHE_DIR):
+            try:
+                os.makedirs(CACHE_DIR)
+            except OSError:
+                pass
 
     @staticmethod
     def load_settings():
+        path = os.getcwd()
         if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, 'r') as f:
-                data = json.load(f)
-                return data.get('media_path', os.getcwd())
-        return os.getcwd()
+            try:
+                with open(CONFIG_FILE, 'r') as f:
+                    data = json.load(f)
+                    path = data.get('media_path', path)
+            except (json.JSONDecodeError, OSError):
+                pass
+        return path
 
     @staticmethod
     def save_settings(path):
