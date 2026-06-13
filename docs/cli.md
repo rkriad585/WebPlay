@@ -7,6 +7,7 @@ WebPlay uses a Click-based command-line interface. All commands accept
 
 | Flag | Description |
 |------|-------------|
+| `--selfuninstall` | Fully remove WebPlay from the system |
 | `--config PATH` | Use a custom config file |
 | `--help` | Show help message |
 
@@ -90,14 +91,18 @@ irm https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.ps1 | iex
 
 ## Uninstall
 
-### Linux / macOS
+### Using the webplay command
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.sh | sh -s -- --selfuninstall
+webplay --selfuninstall
 ```
 
-### Windows
+### Using the installer script
 
-```powershell
+```bash
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.sh | sh -s -- --selfuninstall
+
+# Windows
 Invoke-RestMethod -Uri "https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.ps1" | Invoke-Expression -ArgumentList "--selfuninstall"
 ```

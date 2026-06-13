@@ -27,6 +27,12 @@ irm https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.ps1 | iex
 After install, run `webplay path /path/to/media` to set your media folder,
 then `webplay start` to begin streaming.
 
+## Quick Uninstall
+
+```bash
+webplay --selfuninstall
+```
+
 ## Reference
 
 - [CLI Reference](cli.md) — Command-line interface

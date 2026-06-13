@@ -70,19 +70,23 @@ webplay start --config /path/to/config.toml
 
 ## Uninstall
 
-### Linux / macOS
+### Using the webplay command
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.sh | sh -s -- --selfuninstall
+webplay --selfuninstall
 ```
 
-### Windows (PowerShell)
+### Using the installer script
 
-```powershell
+```bash
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.sh | sh -s -- --selfuninstall
+
+# Windows (PowerShell)
 Invoke-RestMethod -Uri "https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.ps1" | Invoke-Expression -ArgumentList "--selfuninstall"
 ```
 
-Or manually:
+### Manual
 
 ```bash
 pip uninstall webplay
