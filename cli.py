@@ -1,11 +1,15 @@
 import os
 import sys
+import re
 import secrets
 import shutil
 import socket
 import subprocess
 import platform
 import textwrap
+import tempfile
+import urllib.request
+from importlib.metadata import version as _pkg_version, PackageNotFoundError
 
 import click
 
@@ -68,7 +72,38 @@ def _print_urls(port, key=None):
 
 
 PROJECT_NAME = "webplay"
+PROJECT_REPO = "rkriad585/WebPlay"
+PROJECT_RAW = f"https://raw.githubusercontent.com/{PROJECT_REPO}/main"
 CONFIG_DIR_NAME = f"neostore/{PROJECT_NAME}"
+
+
+def _get_current_version():
+    try:
+        return _pkg_version(PROJECT_NAME)
+    except PackageNotFoundError:
+        pass
+    version_file = os.path.join(os.path.dirname(__file__), ".version")
+    if os.path.isfile(version_file):
+        with open(version_file) as f:
+            return f.read().strip().lstrip("v")
+    return "0.0.0"
+
+
+def _fetch_remote_version():
+    url = f"{PROJECT_RAW}/.version"
+    try:
+        with urllib.request.urlopen(url, timeout=15) as r:
+            if r.status == 200:
+                return r.read().decode().strip().lstrip("v")
+    except Exception:
+        pass
+    return None
+
+
+def _compare_versions(current, remote):
+    def _parts(v):
+        return [int(x) for x in re.split(r"[._-]", v) if x.isdigit()]
+    return _parts(remote) > _parts(current)
 
 
 def _get_config_dir():
@@ -316,6 +351,74 @@ def install_ffmpeg():
             log_info(f"  {' '.join(cmd)}")
     else:
         log_info("Installation skipped.")
+
+
+@cli.command()
+@click.option("--proxy", default=None, help="HTTP proxy URL (e.g. http://proxy:8080)")
+def self_update(proxy):
+    """Check for updates and upgrade to the latest version."""
+    print_banner()
+    log_info(f"Checking for updates...")
+
+    current = _get_current_version()
+    log_info(f"Current version: v{current}")
+
+    if proxy:
+        os.environ["HTTP_PROXY"] = proxy
+        os.environ["HTTPS_PROXY"] = proxy
+        log_info(f"Using proxy: {proxy}")
+
+    remote = _fetch_remote_version()
+    if remote is None:
+        log_error("Could not fetch latest version from GitHub.")
+        log_info("Check your internet connection and try again.")
+        return
+
+    log_info(f"Latest version:  v{remote}")
+
+    if not _compare_versions(current, remote):
+        log_success(f"You are already up-to-date (v{current}).")
+        return
+
+    log_info(f"Update available: v{current} -> v{remote}")
+    log_info("Downloading latest release...")
+
+    tmp_dir = tempfile.mkdtemp(prefix=f"{PROJECT_NAME}_update_")
+    archive_path = os.path.join(tmp_dir, f"{PROJECT_NAME}.tar.gz")
+    download_url = (
+        f"https://github.com/{PROJECT_REPO}/archive/refs/tags/v{remote}.tar.gz"
+    )
+
+    try:
+        urllib.request.urlretrieve(download_url, archive_path)
+        size_kb = os.path.getsize(archive_path) / 1024
+        log_info(f"Downloaded ({size_kb:.1f} KB)")
+    except Exception as e:
+        log_error(f"Download failed: {e}")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return
+
+    log_info("Installing update via pip...")
+    pip = shutil.which("pip") or shutil.which("pip3")
+    if not pip:
+        log_error("pip not found — cannot update.")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return
+
+    result = subprocess.run(
+        [pip, "install", "--upgrade", archive_path],
+        capture_output=True, text=True, timeout=120
+    )
+
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    if result.returncode != 0:
+        log_error("Update installation failed.")
+        log_error(result.stderr.strip())
+        return
+
+    log_success(f"Updated to v{remote}!")
+    log_info("Restart WebPlay to use the new version.")
 
 
 def main():

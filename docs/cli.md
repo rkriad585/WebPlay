@@ -60,6 +60,22 @@ webplay install-ffmpeg
 Supported package managers: `apt`, `dnf`, `yum`, `pacman`, `apk`,
 `zypper`, `brew`, `winget`, `choco`, `scoop`.
 
+### `self-update`
+
+Check for updates and upgrade to the latest version.
+
+```bash
+webplay self-update
+
+# With HTTP proxy
+webplay self-update --proxy http://proxy:8080
+```
+
+The command:
+1. Reads the current installed version
+2. Fetches the latest version from GitHub
+3. If a newer version is available, downloads and pip-installs it
+
 ## Options Detail
 
 ### `--port`
