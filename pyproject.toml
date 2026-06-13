@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "webplay"
+version = "0.156.36"
+description = "Self-hosted media streaming server"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+keywords = ["media", "streaming", "video", "flask", "ffmpeg"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+]
+
+authors = [
+    {name = "RK Riad Khan", email = "rkriad585@gmail.com"},
+]
+
+dependencies = [
+    "Flask>=3.0",
+    "Flask-SocketIO>=5.3",
+    "click>=8.1",
+    "rich>=13.7",
+    "pyfiglet>=1.0",
+    "pysubs2>=1.6",
+]
+
+[project.urls]
+Homepage = "https://github.com/rkriad585/WebPlay"
+Source = "https://github.com/rkriad585/WebPlay"
+Issues = "https://github.com/rkriad585/WebPlay/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.1",
+    "black>=24",
+]
+
+[project.scripts]
+webplay = "cli:main"
+
+[tool.setuptools.packages.find]
+include = ["core*"]
+
+[tool.setuptools]
+py-modules = ["cli", "app", "config"]
+
+[tool.setuptools.package-data]
+core = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
