@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 import hashlib
+import threading
 import time
 from datetime import datetime
 from config import CACHE_DIR
@@ -15,6 +16,7 @@ SUPPORTED_AUDIO = ('.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a')
 
 _media_cache = None
 _media_cache_time = 0
+_media_cache_lock = threading.Lock()
 
 
 def get_cached_thumbnail(file_path):
@@ -50,18 +52,20 @@ def evict_old_thumbnails():
 
 def invalidate_media_cache():
     global _media_cache, _media_cache_time
-    _media_cache = None
-    _media_cache_time = 0
+    with _media_cache_lock:
+        _media_cache = None
+        _media_cache_time = 0
 
 
 def get_media_files(root_path):
     global _media_cache, _media_cache_time
     now = time.time()
-    if _media_cache is not None and (now - _media_cache_time) < MEDIA_CACHE_TTL:
-        return _media_cache
+    with _media_cache_lock:
+        if _media_cache is not None and (now - _media_cache_time) < MEDIA_CACHE_TTL:
+            return _media_cache
 
     media_files = []
-    for root, dirs, files in os.walk(root_path):
+    for root, dirs, files in os.walk(root_path, onerror=lambda e: None):
         for file in files:
             if file.lower().endswith(SUPPORTED_VIDEO) or file.lower().endswith(SUPPORTED_AUDIO):
                 full_path = os.path.join(root, file)
@@ -80,8 +84,9 @@ def get_media_files(root_path):
                     })
                 except OSError:
                     continue
-    _media_cache = media_files
-    _media_cache_time = now
+    with _media_cache_lock:
+        _media_cache = media_files
+        _media_cache_time = now
     return media_files
 
 

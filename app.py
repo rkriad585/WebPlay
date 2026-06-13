@@ -1,5 +1,7 @@
 import os
+import re
 import secrets
+import shutil
 import subprocess
 import signal
 import atexit
@@ -26,6 +28,11 @@ Config.ensure_dirs()
 init_db(app.config['DATABASE_PATH'])
 CURRENT_ROOT = Config.load_settings()
 
+if not shutil.which('ffmpeg'):
+    log_warning("FFmpeg not found on PATH. Transcoding and thumbnails will fail.")
+if not shutil.which('ffprobe'):
+    log_warning("FFprobe not found on PATH. Metadata probing will fail.")
+
 
 @app.context_processor
 def inject_globals():
@@ -46,6 +53,7 @@ def cleanup_ffmpeg():
 
 atexit.register(cleanup_ffmpeg)
 signal.signal(signal.SIGTERM, lambda sig, frame: cleanup_ffmpeg())
+signal.signal(signal.SIGINT, lambda sig, frame: cleanup_ffmpeg())
 
 
 @app.route('/')
@@ -59,8 +67,11 @@ def index():
     all_media = get_media_files(CURRENT_ROOT)
 
     if search_query:
-        browse_mode = 'all'
-        media = [m for m in all_media if search_query in m['name'].lower()]
+        if browse_mode == 'specific_folder' and target_folder:
+            media = [m for m in all_media if os.path.dirname(m['path']) == target_folder and search_query in m['name'].lower()]
+        else:
+            browse_mode = 'all'
+            media = [m for m in all_media if search_query in m['name'].lower()]
     elif browse_mode == 'folders':
         folders_dict = {}
         for m in all_media:
@@ -109,9 +120,11 @@ def player():
     except Exception:
         log_error(f"Failed to load playback state for {file_path}")
 
+    def natural_key(s):
+        return [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', s)]
     next_video = None
     parent_dir = os.path.dirname(file_path)
-    siblings = sorted([f for f in os.listdir(parent_dir) if f.lower().endswith(('.mp4','.mkv','.avi','.webm'))])
+    siblings = sorted([f for f in os.listdir(parent_dir) if f.lower().endswith(('.mp4','.mkv','.avi','.webm'))], key=natural_key)
     fname = os.path.basename(file_path)
     try:
         curr_idx = siblings.index(fname)
@@ -134,6 +147,7 @@ def remote_ui():
 def stream():
     path = validate_media_path(request.args.get('path'), CURRENT_ROOT)
     audio_idx = request.args.get('audio_index', default=0, type=int)
+    if audio_idx < 0: audio_idx = 0
     if not path: abort(404)
 
     ext = os.path.splitext(path)[1].lower()
@@ -149,9 +163,12 @@ def stream():
         if not range_header: return send_file(path, mimetype=mime)
         size = os.path.getsize(path)
         byte1, byte2 = 0, None
-        m = range_header.replace('bytes=', '').split('-')
-        byte1 = int(m[0])
-        if m[1]: byte2 = int(m[1])
+        try:
+            m = range_header.replace('bytes=', '').split('-')
+            byte1 = int(m[0])
+            if len(m) > 1 and m[1]: byte2 = int(m[1])
+        except (ValueError, IndexError):
+            return send_file(path, mimetype=mime)
         length = size - byte1
         if byte2: length = byte2 + 1 - byte1
         with open(path, 'rb') as f:
@@ -239,6 +256,12 @@ def save_progress():
     play_time = data.get('time')
     if not file_path or play_time is None:
         return jsonify(success=False, error="Missing path or time"), 400
+    try:
+        play_time = float(play_time)
+        if play_time < 0:
+            return jsonify(success=False, error="Invalid time"), 400
+    except (TypeError, ValueError):
+        return jsonify(success=False, error="Invalid time"), 400
     try:
         with get_db(app.config['DATABASE_PATH']) as conn:
             conn.execute("INSERT OR REPLACE INTO playback (path, time, finished) VALUES (?, ?, 0)", (file_path, play_time))

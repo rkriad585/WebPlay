@@ -70,7 +70,7 @@
             <div class="aspect-video bg-black/40 relative">
                 {% if mode == 'folders' %}
                     {% if item.latest_thumb %}
-                    <img src="/thumbnail?path={{ item.latest_thumb }}" class="w-full h-full object-cover opacity-50 group-hover:opacity-80 transition blur-[1px] group-hover:blur-0">
+                    <img src="/thumbnail?path={{ item.latest_thumb }}{{ k }}" class="w-full h-full object-cover opacity-50 group-hover:opacity-80 transition blur-[1px] group-hover:blur-0">
                     {% else %}
                     <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-white/5 to-white/0">
                         <span class="material-icons-round text-4xl text-white/20">folder</span>
@@ -82,7 +82,7 @@
                     </div>
                 {% else %}
                     {% if item.type == 'video' %}
-                        <img src="/thumbnail?path={{ item.path }}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition duration-500" loading="lazy">
+                        <img src="/thumbnail?path={{ item.path }}{{ k }}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition duration-500" loading="lazy">
                         <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition bg-black/20">
                             <div class="w-10 h-10 rounded-full bg-nothingRed text-white flex items-center justify-center shadow-lg transform scale-0 group-hover:scale-100 transition duration-300">
                                 <span class="material-icons-round text-xl">play_arrow</span>
@@ -107,7 +107,7 @@
                 <div class="w-14 h-10 bg-black/40 rounded flex-shrink-0 overflow-hidden relative border border-white/5">
                      {% if mode == 'folders' %}
                         <div class="flex items-center justify-center h-full bg-white/5"><span class="material-icons-round text-lg text-white/50">folder</span></div>
-                     {% elif item.type == 'video' %}<img src="/thumbnail?path={{ item.path }}" class="w-full h-full object-cover">
+                     {% elif item.type == 'video' %}<img src="/thumbnail?path={{ item.path }}{{ k }}" class="w-full h-full object-cover">
                      {% else %}<div class="flex items-center justify-center h-full"><span class="material-icons-round text-sm text-white/20">audiotrack</span></div>{% endif %}
                 </div>
                 <div class="flex-grow min-w-0">
@@ -116,6 +116,14 @@
             </div>
         {% endif %}
     </a>
+    {% else %}
+    <div class="col-span-full text-center py-20">
+        <span class="material-icons-round text-6xl text-white/10">video_library</span>
+        <p class="text-white/30 mt-4">No media found</p>
+        {% if request.args.get('q') %}
+        <p class="text-white/20 text-sm mt-2">Try a different search query</p>
+        {% endif %}
+    </div>
     {% endfor %}
 </div>
 
@@ -155,6 +163,9 @@
             const focused = document.querySelector('.tv-focused');
             if(focused) window.location.href = focused.getAttribute('href');
         }
+    });
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.tv-focused').forEach(el => el.classList.remove('tv-focused'));
     });
 </script>
 {% endblock %}

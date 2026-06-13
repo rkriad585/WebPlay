@@ -39,9 +39,9 @@
 
     <div class="glass-panel p-0.5 md:p-1 rounded-3xl mb-6 relative group">
         <video id="player" playsinline controls crossorigin>
-            <source src="/stream?path={{ path }}&audio_index={{ request.args.get('audio_index', 0) }}" type="video/mp4" />
+            <source src="/stream?path={{ path }}&audio_index={{ request.args.get('audio_index', 0) }}{{ k }}" type="video/mp4" />
             {% if has_sub %}
-            <track kind="captions" label="English" src="/subtitle?path={{ path }}" srclang="en" default />
+            <track kind="captions" label="English" src="/subtitle?path={{ path }}{{ k }}" srclang="en" default />
             {% endif %}
         </video>
     </div>
@@ -91,7 +91,12 @@
         });
 
         const storedTime = {{ start_time }};
-        if (storedTime > 0) player.once('ready', () => player.currentTime = storedTime);
+        const applyStoredTime = () => { if (storedTime > 0) player.currentTime = storedTime; };
+        if (player.elements.container.classList.contains('plyr--ready')) {
+            applyStoredTime();
+        } else {
+            player.once('ready', applyStoredTime);
+        }
 
         const saveProgress = () => {
             if (player.currentTime > 5) {
@@ -103,6 +108,9 @@
         };
         player.on('pause', saveProgress);
         window.addEventListener('beforeunload', saveProgress);
+        setInterval(() => {
+            if (player.currentTime > 5) saveProgress();
+        }, 30000);
 
         const urlParams = new URLSearchParams(window.location.search);
         const socket = io({ query: { key: urlParams.get('key') || '' } });
@@ -133,7 +141,7 @@
             navigator.mediaSession.metadata = new MediaMetadata({
                 title: {{ filename | tojson }},
                 artist: 'WebPlay',
-                artwork: [{ src: {{ ('/thumbnail?path=' + path) | tojson }} }]
+                artwork: [{ src: {{ ('/thumbnail?path=' + path + k) | tojson }} }]
             });
             navigator.mediaSession.setActionHandler('play', () => player.play());
             navigator.mediaSession.setActionHandler('pause', () => player.pause());
