@@ -9,3 +9,8 @@ webplay_settings.json
 .pytest_cache/
 AGENTS.md
 analysis.json
+build/
+dist/
+*.egg-info/
+venv/
+.venv/

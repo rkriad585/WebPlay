@@ -1,14 +1,14 @@
 services:
   webplay:
     build: .
+    image: webplay:latest
     ports:
       - "5000:5000"
     volumes:
-      - ./webplay_settings.json:/app/webplay_settings.json
-      - ./webplay.db:/app/webplay.db
       - ./media:/media:ro
     environment:
       - WEBPLAY_DOMAIN=
       - TRANSCODE_PRESET=ultrafast
       - TRANSCODE_CRF=28
     command: ["free", "--port", "5000"]
+    restart: unless-stopped
