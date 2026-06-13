@@ -4,6 +4,8 @@ core/__pycache__
 webplay.db
 webplay_settings.json
 .webplay_cache/
+.webplay_key.txt
 .env
 .pytest_cache/
 AGENTS.md
+analysis.json
