@@ -5,7 +5,7 @@ import hashlib
 import threading
 import time
 from datetime import datetime
-from config import CACHE_DIR
+from config import Config
 from .utils import format_size, log_error
 
 MAX_CACHE_FILES = 100
@@ -21,7 +21,7 @@ _media_cache_lock = threading.Lock()
 
 def get_cached_thumbnail(file_path):
     file_hash = hashlib.md5(file_path.encode('utf-8')).hexdigest()
-    cache_path = os.path.join(CACHE_DIR, f"{file_hash}.jpg")
+    cache_path = os.path.join(Config.CACHE_DIR, f"{file_hash}.jpg")
     if os.path.exists(cache_path):
         return cache_path
     return None
@@ -29,7 +29,7 @@ def get_cached_thumbnail(file_path):
 
 def save_thumbnail_to_cache(file_path, image_data):
     file_hash = hashlib.md5(file_path.encode('utf-8')).hexdigest()
-    cache_path = os.path.join(CACHE_DIR, f"{file_hash}.jpg")
+    cache_path = os.path.join(Config.CACHE_DIR, f"{file_hash}.jpg")
     with open(cache_path, 'wb') as f:
         f.write(image_data)
     evict_old_thumbnails()
@@ -37,8 +37,8 @@ def save_thumbnail_to_cache(file_path, image_data):
 
 def evict_old_thumbnails():
     files = []
-    for fname in os.listdir(CACHE_DIR):
-        fpath = os.path.join(CACHE_DIR, fname)
+    for fname in os.listdir(Config.CACHE_DIR):
+        fpath = os.path.join(Config.CACHE_DIR, fname)
         if os.path.isfile(fpath) and fname.endswith('.jpg'):
             files.append((fpath, os.path.getmtime(fpath)))
     if len(files) > MAX_CACHE_FILES:

@@ -13,11 +13,12 @@ import click
 from flask import Flask, render_template, request, Response, send_file, jsonify, abort
 from flask_socketio import SocketIO, emit, join_room
 
-from core.utils import print_banner, log_info, log_success, log_error, log_warning
+from core.utils import print_banner, log_info, log_success, log_error, log_warning, set_log_file
 from core.media import get_media_files, get_video_metadata, convert_srt_to_vtt, get_cached_thumbnail, save_thumbnail_to_cache
 from core.auth import require_auth, validate_media_path
 from core.db import get_db, init_db
-from config import Config, BASE_DIR
+from core.paths import get_key_path, get_cache_dir, get_log_path
+from config import Config, load_toml, get_setting, save_config
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -27,8 +28,11 @@ ffmpeg_processes = []
 ffmpeg_lock = threading.Lock()
 
 Config.ensure_dirs()
+load_toml()
+set_log_file(get_log_path())
+app.config['DATABASE_PATH'] = get_setting("db", "path") or Config.DATABASE_PATH
 init_db(app.config['DATABASE_PATH'])
-CURRENT_ROOT = Config.load_settings()
+CURRENT_ROOT = get_setting("media", "path") or Config.load_settings()
 
 if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
     log_warning("FFmpeg/FFprobe not found. Run 'python app.py install-ffmpeg' to auto-install.")
@@ -223,7 +227,7 @@ def stream():
         def generate():
             cmd = ['ffmpeg', '-re', '-i', path,
                    '-map', '0:v:0', '-map', f'0:a:{audio_idx}?',
-                   '-c:v', 'libx264', '-preset', os.environ.get('TRANSCODE_PRESET', 'ultrafast'), '-crf', os.environ.get('TRANSCODE_CRF', '28'),
+                   '-c:v', 'libx264', '-preset', get_setting('transcode', 'preset') or os.environ.get('TRANSCODE_PRESET', 'ultrafast'), '-crf', str(get_setting('transcode', 'crf') or os.environ.get('TRANSCODE_CRF', '28')),
                    '-c:a', 'aac', '-movflags', 'frag_keyframe+empty_moov',
                    '-f', 'mp4', '-']
 
@@ -370,8 +374,10 @@ def cli():
 
 @cli.command()
 @click.argument('path', type=click.Path(exists=True))
-def path(path):
-    Config.save_settings(os.path.abspath(path))
+@click.option('--config', 'config_path', default=None, help='Path to config.toml')
+def path(path, config_path):
+    save_config({"path": os.path.abspath(path)}, config_path)
+    load_toml(config_path)
     print_banner()
     log_success(f"Media path: {path}")
 
@@ -386,13 +392,13 @@ def _print_urls(port, key=None):
         log_info(f"Domain: http://{public}:{port}{qs}")
 
 
-KEY_FILE = os.path.join(BASE_DIR, '.webplay_key.txt')
-
-
 @cli.command()
 @click.option('--port', default=5000)
 @click.option('--domain', envvar='WEBPLAY_DOMAIN', default=None, help='Public domain name')
-def free(port, domain):
+@click.option('--config', 'config_path', default=None, help='Path to config.toml')
+def free(port, domain, config_path):
+    if config_path:
+        load_toml(config_path)
     print_banner()
     app.config['API_KEY'] = None
     if domain:
@@ -405,29 +411,34 @@ def free(port, domain):
 @click.option('--port', default=5000)
 @click.option('--domain', envvar='WEBPLAY_DOMAIN', default=None, help='Public domain name')
 @click.option('--key', 'key_arg', default=None, help='Use a specific API key (default: random)')
-def start(port, domain, key_arg):
+@click.option('--config', 'config_path', default=None, help='Path to config.toml')
+def start(port, domain, key_arg, config_path):
+    if config_path:
+        load_toml(config_path)
     print_banner()
     key = key_arg or secrets.token_urlsafe(16)
     app.config['API_KEY'] = key
     if domain:
         os.environ['WEBPLAY_DOMAIN'] = domain
+    kf = get_key_path()
     try:
-        with open(KEY_FILE, 'w') as f:
+        with open(kf, 'w') as f:
             f.write(key + '\n')
     except OSError:
         pass
     _print_urls(port, key)
     if key_arg:
         log_info(f"Using provided key: {key}")
-    log_warning("API key saved to .webplay_key.txt")
+    log_warning(f"API key saved to {kf}")
     socketio.run(app, host='0.0.0.0', port=port, debug=False)
 
 
 @cli.command()
 def key():
     """Print the saved API key from the last start."""
-    if os.path.exists(KEY_FILE):
-        with open(KEY_FILE) as f:
+    kf = get_key_path()
+    if os.path.exists(kf):
+        with open(kf) as f:
             saved = f.read().strip()
         if saved:
             log_info(f"API key: {saved}")

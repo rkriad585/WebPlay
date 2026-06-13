@@ -1,0 +1,21 @@
+* text=auto eol=lf
+
+*.py text diff=python
+*.html text
+*.css text
+*.js text
+*.toml text
+*.yml text
+*.json text
+*.md text
+*.svg text
+
+Dockerfile text
+.gitattributes text
+.gitignore text
+.dockerignore text
+
+*.jpg binary
+*.png binary
+*.ico binary
+*.db binary
