@@ -2,6 +2,7 @@ import os
 import re
 import secrets
 import shutil
+import socket
 import subprocess
 import signal
 import atexit
@@ -49,6 +50,19 @@ def _detect_install_cmd():
             if shutil.which(pm):
                 return [pm] + pkgs
     return None
+
+
+def get_lan_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.1)
+        s.connect(("1.1.1.1", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        pass
+    return '127.0.0.1'
 
 
 @app.context_processor
@@ -354,9 +368,11 @@ def path(path):
 @click.option('--port', default=5000)
 def start(port):
     print_banner()
+    lan = get_lan_ip()
     key = secrets.token_urlsafe(16)
     app.config['API_KEY'] = key
-    log_info(f"Server: http://127.0.0.1:{port}?key={key}")
+    log_info(f"Local:  http://127.0.0.1:{port}?key={key}")
+    log_info(f"LAN:    http://{lan}:{port}?key={key}")
     log_warning("Copy key above.")
     socketio.run(app, host='0.0.0.0', port=port, debug=False)
 
@@ -365,8 +381,10 @@ def start(port):
 @click.option('--port', default=5000)
 def free(port):
     print_banner()
+    lan = get_lan_ip()
     app.config['API_KEY'] = None
-    log_info(f"Server: http://127.0.0.1:{port}")
+    log_info(f"Local:  http://127.0.0.1:{port}")
+    log_info(f"LAN:    http://{lan}:{port}")
     socketio.run(app, host='0.0.0.0', port=port, debug=False)
 
 
