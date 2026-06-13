@@ -1,0 +1,102 @@
+/* Shared component styles using theme CSS variables */
+
+body {
+    background-color: var(--th-bg);
+    background-image: radial-gradient(circle at 50% 0%, var(--th-bg-glare) 0%, var(--th-bg) 80%);
+    color: var(--th-text);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.glass-panel {
+    background: var(--th-glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--th-glass-border);
+    box-shadow: 0 8px 32px var(--th-shadow);
+}
+
+.nav-blur {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.file-item {
+    background: var(--th-glass-bg);
+    border: 1px solid var(--th-glass-border);
+    transition: all 0.3s ease;
+}
+
+.file-item:hover {
+    background: var(--th-hover);
+    box-shadow: 0 10px 40px -10px var(--th-shadow);
+}
+
+.file-item.selected {
+    border-color: var(--th-accent);
+    box-shadow: 0 0 20px var(--th-accent-shadow);
+}
+
+.file-item .delete-btn {
+    color: var(--th-accent);
+}
+
+.file-item .delete-btn:hover {
+    background: var(--th-accent);
+    color: white;
+}
+
+.search-bar {
+    background: var(--th-input-bg);
+    border: 1px solid var(--th-input-border);
+}
+
+.search-bar:focus {
+    border-color: var(--th-accent);
+    outline: none;
+}
+
+.tv-focused {
+    border: 2px solid var(--th-accent) !important;
+    transform: scale(1.05);
+    box-shadow: 0 0 20px var(--th-accent-shadow);
+    z-index: 10;
+}
+
+.meta-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+    background: var(--th-hover);
+    border: 1px solid var(--th-border);
+    font-size: 0.75rem;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--th-text-secondary);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--th-bg);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--th-elevated);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--th-text-secondary);
+}
+
+/* Plyr override */
+:root {
+    --plyr-color-main: var(--th-accent);
+}
+.plyr--video {
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px var(--th-shadow);
+}

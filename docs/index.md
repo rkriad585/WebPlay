@@ -36,6 +36,7 @@ webplay --selfuninstall
 ## Reference
 
 - [CLI Reference](cli.md) — Command-line interface
+- [Themes](configuration.md#theme) — Runtime theme switching
 - [Docker Guide](docker.md) — Running with Docker
 - [Troubleshooting](troubleshooting.md) — Common issues
 

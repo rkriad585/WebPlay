@@ -4,50 +4,54 @@
 <div class="flex flex-col items-center justify-center min-h-[80vh] gap-8">
 
     <div class="text-center">
-        <h1 class="text-3xl font-bold font-mono">REMOTE</h1>
-        <p class="text-white/40 text-xs">Control WebPlay on PC</p>
+        <h1 class="text-3xl font-bold font-mono" style="color: var(--th-text);">REMOTE</h1>
+        <p class="text-xs" style="color: var(--th-text-secondary);">Control WebPlay on PC</p>
     </div>
 
-    <div id="status" class="px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-mono">
+    <div id="status" class="px-3 py-1 rounded-full text-xs font-mono" style="background: rgba(239, 68, 68, 0.2); color: rgb(239, 68, 68);">
         Disconnected
     </div>
 
-    <div class="glass-panel p-8 rounded-3xl grid grid-cols-3 gap-6 w-full max-w-xs">
+    <div class="p-8 rounded-3xl grid grid-cols-3 gap-6 w-full max-w-xs" style="background: var(--th-glass-bg); border: 1px solid var(--th-glass-border); box-shadow: 0 8px 32px var(--th-shadow);">
 
-        <button onclick="sendCmd('seek', -10)" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+        <button onclick="sendCmd('seek', -10)" class="aspect-square rounded-2xl flex items-center justify-center active:scale-90 transition" style="background: var(--th-input-bg); color: var(--th-text);" onmouseover="this.style.background='var(--th-hover)'" onmouseout="this.style.background='var(--th-input-bg)'">
             <span class="material-icons-round text-3xl">replay_10</span>
         </button>
-        <button onclick="sendCmd('playpause')" class="aspect-square rounded-2xl bg-nothingRed text-white flex items-center justify-center shadow-lg shadow-nothingRed/30 active:scale-90 transition scale-110">
+        <button onclick="sendCmd('playpause')" class="aspect-square rounded-2xl flex items-center justify-center active:scale-90 transition scale-110" style="background: var(--th-accent); color: white; box-shadow: 0 4px 20px var(--th-accent-shadow);">
             <span class="material-icons-round text-4xl">play_arrow</span>
         </button>
-        <button onclick="sendCmd('seek', 10)" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+        <button onclick="sendCmd('seek', 10)" class="aspect-square rounded-2xl flex items-center justify-center active:scale-90 transition" style="background: var(--th-input-bg); color: var(--th-text);" onmouseover="this.style.background='var(--th-hover)'" onmouseout="this.style.background='var(--th-input-bg)'">
             <span class="material-icons-round text-3xl">forward_10</span>
         </button>
 
-        <button onclick="sendCmd('vol', -0.1)" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+        <button onclick="sendCmd('vol', -0.1)" class="aspect-square rounded-2xl flex items-center justify-center active:scale-90 transition" style="background: var(--th-input-bg); color: var(--th-text);" onmouseover="this.style.background='var(--th-hover)'" onmouseout="this.style.background='var(--th-input-bg)'">
             <span class="material-icons-round text-3xl">volume_down</span>
         </button>
-        <button onclick="sendCmd('mute')" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+        <button onclick="sendCmd('mute')" class="aspect-square rounded-2xl flex items-center justify-center active:scale-90 transition" style="background: var(--th-input-bg); color: var(--th-text);" onmouseover="this.style.background='var(--th-hover)'" onmouseout="this.style.background='var(--th-input-bg)'">
             <span class="material-icons-round text-3xl">volume_off</span>
         </button>
-        <button onclick="sendCmd('vol', 0.1)" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+        <button onclick="sendCmd('vol', 0.1)" class="aspect-square rounded-2xl flex items-center justify-center active:scale-90 transition" style="background: var(--th-input-bg); color: var(--th-text);" onmouseover="this.style.background='var(--th-hover)'" onmouseout="this.style.background='var(--th-input-bg)'">
             <span class="material-icons-round text-3xl">volume_up</span>
         </button>
 
-         <button onclick="sendCmd('prev')" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+         <button onclick="sendCmd('prev')" class="aspect-square rounded-2xl flex items-center justify-center active:scale-90 transition" style="background: var(--th-input-bg); color: var(--th-text);" onmouseover="this.style.background='var(--th-hover)'" onmouseout="this.style.background='var(--th-input-bg)'">
             <span class="material-icons-round text-3xl">skip_previous</span>
         </button>
          <div class="flex items-center justify-center">
-             <span class="material-icons-round text-white/10 text-4xl">gamepad</span>
+             <span class="material-icons-round text-4xl" style="color: var(--th-text-secondary);">gamepad</span>
          </div>
-         <button onclick="sendCmd('next')" class="aspect-square rounded-2xl bg-white/5 hover:bg-white/10 flex items-center justify-center active:scale-90 transition">
+         <button onclick="sendCmd('next')" class="aspect-square rounded-2xl flex items-center justify-center active:scale-90 transition" style="background: var(--th-input-bg); color: var(--th-text);" onmouseover="this.style.background='var(--th-hover)'" onmouseout="this.style.background='var(--th-input-bg)'">
             <span class="material-icons-round text-3xl">skip_next</span>
         </button>
     </div>
 
     <div class="w-full max-w-xs px-4">
-        <input type="text" id="roomCode" placeholder="Enter Room Code (Default: webplay)" value="webplay" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center mb-2">
-        <button onclick="connectSocket()" class="w-full bg-white/10 py-3 rounded-xl hover:bg-white/20 transition">Connect</button>
+        <input type="text" id="roomCode" placeholder="Enter Room Code (Default: webplay)" value="webplay"
+               class="w-full rounded-xl px-4 py-3 text-center mb-2 transition"
+               style="background: var(--th-input-bg); border: 1px solid var(--th-input-border); color: var(--th-text);"
+               onfocus="this.style.borderColor='var(--th-accent)'"
+               onblur="this.style.borderColor='var(--th-input-border)'">
+        <button onclick="connectSocket()" class="w-full py-3 rounded-xl transition" style="background: var(--th-hover); color: var(--th-text); border: 1px solid var(--th-border);" onmouseover="this.style.background='var(--th-elevated)'" onmouseout="this.style.background='var(--th-hover)'">Connect</button>
     </div>
 
 </div>
@@ -66,18 +70,24 @@
 
         socket.on('connect', () => {
             document.getElementById('status').innerText = "Connected: " + room;
-            document.getElementById('status').className = "px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-mono";
+            document.getElementById('status').className = "px-3 py-1 rounded-full text-xs font-mono";
+            document.getElementById('status').style.background = "rgba(34, 197, 94, 0.2)";
+            document.getElementById('status').style.color = "rgb(34, 197, 94)";
             socket.emit('join', {room: room});
         });
 
         socket.on('disconnect', () => {
             document.getElementById('status').innerText = "Disconnected";
-            document.getElementById('status').className = "px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-mono";
+            document.getElementById('status').className = "px-3 py-1 rounded-full text-xs font-mono";
+            document.getElementById('status').style.background = "rgba(239, 68, 68, 0.2)";
+            document.getElementById('status').style.color = "rgb(239, 68, 68)";
         });
 
         socket.on('connect_error', () => {
             document.getElementById('status').innerText = "Connection failed";
-            document.getElementById('status').className = "px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-mono";
+            document.getElementById('status').className = "px-3 py-1 rounded-full text-xs font-mono";
+            document.getElementById('status').style.background = "rgba(239, 68, 68, 0.2)";
+            document.getElementById('status').style.color = "rgb(239, 68, 68)";
         });
     }
 

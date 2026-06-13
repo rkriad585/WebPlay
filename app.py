@@ -14,7 +14,8 @@ from core.media import get_media_files, get_video_metadata, convert_srt_to_vtt, 
 from core.auth import require_auth, validate_media_path
 from core.db import get_db, init_db
 from core.paths import get_key_path, get_cache_dir, get_log_path
-from config import Config, load_toml, get_setting, save_config
+from core.themes import resolve_theme, get_theme_css, get_theme_list, DEFAULT_THEME
+from config import Config, load_toml, get_setting, save_config, _config_data
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -34,10 +35,27 @@ if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
     log_warning("FFmpeg/FFprobe not found. Run 'python app.py install-ffmpeg' to auto-install.")
 
 
+def _current_theme():
+    name = get_setting("theme", "name") or DEFAULT_THEME
+    return resolve_theme(name)
+
+
 @app.context_processor
 def inject_globals():
     k = ('&key=' + request.args.get('key')) if request.args.get('key') else ''
-    return dict(k=k)
+    theme = _current_theme()
+    theme_display_list = [
+        {"slug": slug, "display": resolve_theme(slug)["name"]}
+        for slug in get_theme_list()
+    ]
+    return dict(
+        k=k,
+        theme_name=theme.get("name", DEFAULT_THEME),
+        theme_mode=theme.get("mode", "dark"),
+        theme_palette=theme["palette"],
+        theme_css=get_theme_css(theme),
+        theme_list=theme_display_list,
+    )
 
 
 def cleanup_ffmpeg():
@@ -269,6 +287,22 @@ def save_progress():
     except Exception:
         return jsonify(success=False, error="Database error"), 500
     return jsonify(success=True)
+
+
+@app.route('/api/theme', methods=['POST'])
+@require_auth
+def set_theme():
+    data = request.json
+    if not data or "name" not in data:
+        return jsonify(success=False, error="Missing theme name"), 400
+    name = data["name"]
+    theme = resolve_theme(name)
+    if theme.get("name") != name and name not in [k for k in get_theme_list()]:
+        return jsonify(success=False, error="Unknown theme"), 400
+    cfg = dict(_config_data)
+    cfg["theme"] = {"name": name, "mode": theme["mode"]}
+    save_config(cfg)
+    return jsonify(success=True, name=name, mode=theme["mode"])
 
 
 @app.route('/api/rename', methods=['POST'])

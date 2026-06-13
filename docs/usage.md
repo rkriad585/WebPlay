@@ -60,6 +60,18 @@ Open the remote control URL on your phone to control playback:
 
 The remote connects via WebSocket and syncs with the player.
 
+## Theme Switching
+
+WebPlay includes 12 built-in themes (7 dark, 5 light). Switch between them at runtime:
+
+1. Click the palette icon in the navbar to open the theme picker.
+2. Select any theme — the page reloads with the new theme applied.
+3. Your selection is saved to `config.toml` under `[theme]`.
+
+Available themes: `dark`, `midnight_blue`, `forest_night`, `violet_dusk`, `warm_ember`, `cherry_red`, `amoled`, `light_clean`, `ocean_breeze`, `sunny_day`, `mint_fresh`, `lavender`.
+
+Themes can also be changed programmatically by POSTing `{"name": "theme_slug"}` to `/api/theme`.
+
 ## Keyboard Shortcuts
 
 | Key | Action |

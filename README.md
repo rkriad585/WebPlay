@@ -19,6 +19,7 @@ to any device on your network via a web browser.
 - Grid/list/folder views
 - Search and filter
 - Secured mode with API key authentication
+- Runtime theme switching with 12 built-in themes (dark + light)
 
 ## Quick Install
 
@@ -111,9 +112,15 @@ path = "/path/to/media"
 [transcode]
 preset = "ultrafast"
 crf = 28
+
+[theme]
+name = "dark"
+mode = "dark"
 ```
 
 Override with environment variables: `TRANSCODE_PRESET`, `TRANSCODE_CRF`.
+
+Themes can be switched at runtime via the palette icon in the navbar or by editing `config.toml`. Available themes: `dark`, `midnight_blue`, `forest_night`, `violet_dusk`, `warm_ember`, `cherry_red`, `amoled`, `light_clean`, `ocean_breeze`, `sunny_day`, `mint_fresh`, `lavender`.
 
 ## Build Instructions
 

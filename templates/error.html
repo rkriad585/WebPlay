@@ -3,36 +3,36 @@
 {% block content %}
 <div class="min-h-[80vh] flex flex-col items-center justify-center p-4">
     <!-- Glass Card -->
-    <div class="glass-panel p-8 rounded-3xl max-w-md w-full text-center relative overflow-hidden group">
+    <div class="p-8 rounded-3xl max-w-md w-full text-center relative overflow-hidden group" style="background: var(--th-glass-bg); border: 1px solid var(--th-glass-border); box-shadow: 0 8px 32px var(--th-shadow);">
         
         <!-- Animated Background Glow -->
-        <div class="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-gradient-to-br from-nothingRed/20 via-transparent to-transparent opacity-50 rotate-45 group-hover:rotate-180 transition-transform duration-1000"></div>
+        <div class="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-gradient-to-br from-[var(--th-accent)] via-transparent to-transparent opacity-50 rotate-45 group-hover:rotate-180 transition-transform duration-1000" style="opacity: 0.2;"></div>
 
-        <span class="material-icons-round text-8xl text-nothingRed mb-4 drop-shadow-[0_0_15px_rgba(215,25,32,0.5)]">lock</span>
+        <span class="material-icons-round text-8xl mb-4" style="color: var(--th-accent); filter: drop-shadow(0 0 15px var(--th-accent-shadow));">lock</span>
         
-        <h1 class="text-3xl font-bold font-mono tracking-tighter mb-2">ACCESS DENIED</h1>
-        <p class="text-white/50 text-sm mb-6">
+        <h1 class="text-3xl font-bold font-mono tracking-tighter mb-2" style="color: var(--th-text);">ACCESS DENIED</h1>
+        <p class="text-sm mb-6" style="color: var(--th-text-secondary);">
             This server is running in <b>Secured Mode</b>. 
             An API Key is required to access the media library.
         </p>
 
         <!-- Divider -->
-        <div class="h-px w-full bg-white/10 mb-6"></div>
+        <div class="h-px w-full mb-6" style="background: var(--th-border);"></div>
 
         <div class="text-left space-y-4">
             <div>
-                <p class="text-xs font-mono text-nothingRed uppercase mb-1">How to fix</p>
-                <p class="text-xs text-white/70">Check the terminal/console where you started the script. The URL with the key is printed there.</p>
+                <p class="text-xs font-mono uppercase mb-1" style="color: var(--th-accent);">How to fix</p>
+                <p class="text-xs" style="color: var(--th-text-secondary);">Check the terminal/console where you started the script. The URL with the key is printed there.</p>
             </div>
             
-            <div class="bg-black/40 p-3 rounded-lg border border-white/10 flex items-center gap-3">
-                <span class="material-icons-round text-white/30 text-sm">terminal</span>
-                <code class="text-xs text-green-400 font-mono truncate">?key=xxxx-xxxx-xxxx</code>
+            <div class="p-3 rounded-lg flex items-center gap-3" style="background: rgba(0,0,0,0.3); border: 1px solid var(--th-border);">
+                <span class="material-icons-round text-sm" style="color: var(--th-text-secondary);">terminal</span>
+                <code class="text-xs font-mono" style="color: rgb(34, 197, 94);">?key=xxxx-xxxx-xxxx</code>
             </div>
         </div>
 
         <div class="mt-8">
-            <a href="/" class="px-6 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm font-mono">
+            <a href="/" class="px-6 py-2 rounded-full transition text-sm font-mono" style="background: var(--th-input-bg); border: 1px solid var(--th-input-border); color: var(--th-text);" onmouseover="this.style.background='var(--th-hover)'" onmouseout="this.style.background='var(--th-input-bg)'">
                 TRY AGAIN
             </a>
         </div>

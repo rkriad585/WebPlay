@@ -26,6 +26,10 @@ path = "/path/to/media"
 [transcode]
 preset = "ultrafast"
 crf = 28
+
+[theme]
+name = "dark"
+mode = "dark"
 ```
 
 ## Sections
@@ -55,6 +59,17 @@ crf = 28
 |-----|---------|-------------|
 | `preset` | `"ultrafast"` | FFmpeg transcode preset |
 | `crf` | `28` | FFmpeg CRF value (quality) |
+
+### `[theme]`
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `name` | `"dark"` | Theme slug (see available themes below) |
+| `mode` | `"dark"` | `"dark"` or `"light"` — overridden by theme |
+
+Available themes: `dark`, `midnight_blue`, `forest_night`, `violet_dusk`, `warm_ember`, `cherry_red`, `amoled`, `light_clean`, `ocean_breeze`, `sunny_day`, `mint_fresh`, `lavender`.
+
+Themes can be switched at runtime via the palette icon in the navbar or by POSTing to `/api/theme` with `{"name": "theme_slug"}`.
 
 ## Environment Variables
 

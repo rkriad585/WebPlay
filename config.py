@@ -49,6 +49,7 @@ def save_config(data, config_path=None):
         ("auth", ["api_key"]),
         ("media", ["path"]),
         ("transcode", ["preset", "crf"]),
+        ("theme", ["name", "mode"]),
     ]:
         sv = {k: data.get(k) for k in keys if k in data}
         if not sv:
