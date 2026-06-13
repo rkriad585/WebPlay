@@ -124,6 +124,12 @@
             if (data.action === 'next' && nextVideoUrl) window.location.href = nextVideoUrl;
         });
 
+        player.on('ended', () => {
+            $.ajax({
+                url: '/api/save_progress', type: 'POST', contentType: 'application/json',
+                data: JSON.stringify({ path: {{ path | tojson }}, time: {{ meta.seconds | tojson }}, finished: 1 })
+            });
+        });
         {% if next_video %}
         {% set next_url = '/player?path=' + next_video + k %}
         const nextVideoUrl = {{ next_url | tojson }};

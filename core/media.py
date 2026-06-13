@@ -111,7 +111,7 @@ def probe_file(file_path):
 
 
 def get_video_metadata(file_path):
-    meta = {'duration': '0:00', 'resolution': 'N/A', 'codec': 'N/A', 'audio_tracks': []}
+    meta = {'duration': '0:00', 'seconds': 0, 'resolution': 'N/A', 'codec': 'N/A', 'audio_tracks': []}
     try:
         probe = probe_file(file_path)
         if not probe:

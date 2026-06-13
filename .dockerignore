@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+.git
+.gitignore
+AGENTS.md
+analysis.json
+.webplay_cache
+.webplay_key.txt
+webplay_settings.json
+webplay.db
+*.md

@@ -1,12 +1,13 @@
 import os
 import json
 
-CONFIG_FILE = 'webplay_settings.json'
-CACHE_DIR = os.path.join(os.getcwd(), '.webplay_cache')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(BASE_DIR, 'webplay_settings.json')
+CACHE_DIR = os.path.join(BASE_DIR, '.webplay_cache')
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-key-webplay-secure'
-    DATABASE_PATH = 'webplay.db'
+    DATABASE_PATH = os.path.join(BASE_DIR, 'webplay.db')
 
     @staticmethod
     def ensure_dirs():
@@ -18,7 +19,7 @@ class Config:
 
     @staticmethod
     def load_settings():
-        path = os.getcwd()
+        path = BASE_DIR
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, 'r') as f:

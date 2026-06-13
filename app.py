@@ -17,11 +17,11 @@ from core.utils import print_banner, log_info, log_success, log_error, log_warni
 from core.media import get_media_files, get_video_metadata, convert_srt_to_vtt, get_cached_thumbnail, save_thumbnail_to_cache
 from core.auth import require_auth, validate_media_path
 from core.db import get_db, init_db
-from config import Config
+from config import Config, BASE_DIR
 
 app = Flask(__name__)
 app.config.from_object(Config)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins=[])
 
 ffmpeg_processes = []
 ffmpeg_lock = threading.Lock()
@@ -223,7 +223,7 @@ def stream():
         def generate():
             cmd = ['ffmpeg', '-re', '-i', path,
                    '-map', '0:v:0', '-map', f'0:a:{audio_idx}?',
-                   '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+                   '-c:v', 'libx264', '-preset', os.environ.get('TRANSCODE_PRESET', 'ultrafast'), '-crf', os.environ.get('TRANSCODE_CRF', '28'),
                    '-c:a', 'aac', '-movflags', 'frag_keyframe+empty_moov',
                    '-f', 'mp4', '-']
 
@@ -304,9 +304,10 @@ def save_progress():
             return jsonify(success=False, error="Invalid time"), 400
     except (TypeError, ValueError):
         return jsonify(success=False, error="Invalid time"), 400
+    finished = 1 if data.get('finished') else 0
     try:
         with get_db(app.config['DATABASE_PATH']) as conn:
-            conn.execute("INSERT OR REPLACE INTO playback (path, time, finished) VALUES (?, ?, 0)", (file_path, play_time))
+            conn.execute("INSERT OR REPLACE INTO playback (path, time, finished) VALUES (?, ?, ?)", (file_path, play_time, finished))
     except Exception:
         return jsonify(success=False, error="Database error"), 500
     return jsonify(success=True)
@@ -385,18 +386,7 @@ def _print_urls(port, key=None):
         log_info(f"Domain: http://{public}:{port}{qs}")
 
 
-@cli.command()
-@click.option('--port', default=5000)
-@click.option('--domain', envvar='WEBPLAY_DOMAIN', default=None, help='Public domain name')
-def start(port, domain):
-    print_banner()
-    key = secrets.token_urlsafe(16)
-    app.config['API_KEY'] = key
-    if domain:
-        os.environ['WEBPLAY_DOMAIN'] = domain
-    _print_urls(port, key)
-    log_warning("Copy key above.")
-    socketio.run(app, host='0.0.0.0', port=port, debug=False)
+KEY_FILE = os.path.join(BASE_DIR, '.webplay_key.txt')
 
 
 @cli.command()
@@ -409,6 +399,40 @@ def free(port, domain):
         os.environ['WEBPLAY_DOMAIN'] = domain
     _print_urls(port)
     socketio.run(app, host='0.0.0.0', port=port, debug=False)
+
+
+@cli.command()
+@click.option('--port', default=5000)
+@click.option('--domain', envvar='WEBPLAY_DOMAIN', default=None, help='Public domain name')
+@click.option('--key', 'key_arg', default=None, help='Use a specific API key (default: random)')
+def start(port, domain, key_arg):
+    print_banner()
+    key = key_arg or secrets.token_urlsafe(16)
+    app.config['API_KEY'] = key
+    if domain:
+        os.environ['WEBPLAY_DOMAIN'] = domain
+    try:
+        with open(KEY_FILE, 'w') as f:
+            f.write(key + '\n')
+    except OSError:
+        pass
+    _print_urls(port, key)
+    if key_arg:
+        log_info(f"Using provided key: {key}")
+    log_warning("API key saved to .webplay_key.txt")
+    socketio.run(app, host='0.0.0.0', port=port, debug=False)
+
+
+@cli.command()
+def key():
+    """Print the saved API key from the last start."""
+    if os.path.exists(KEY_FILE):
+        with open(KEY_FILE) as f:
+            saved = f.read().strip()
+        if saved:
+            log_info(f"API key: {saved}")
+            return
+    log_error("No saved API key found. Run 'python app.py start' first.")
 
 
 @cli.command()
