@@ -7,6 +7,7 @@ import signal
 import atexit
 import threading
 import select
+import platform
 import click
 from flask import Flask, render_template, request, Response, send_file, jsonify, abort
 from flask_socketio import SocketIO, emit, join_room
@@ -28,10 +29,26 @@ Config.ensure_dirs()
 init_db(app.config['DATABASE_PATH'])
 CURRENT_ROOT = Config.load_settings()
 
-if not shutil.which('ffmpeg'):
-    log_warning("FFmpeg not found on PATH. Transcoding and thumbnails will fail.")
-if not shutil.which('ffprobe'):
-    log_warning("FFprobe not found on PATH. Metadata probing will fail.")
+if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
+    log_warning("FFmpeg/FFprobe not found. Run 'python app.py install-ffmpeg' to auto-install.")
+
+
+def _detect_install_cmd():
+    system = platform.system()
+    if system == 'Linux':
+        for pm, pkgs in [('apt', ['install', '-y', 'ffmpeg']), ('dnf', ['install', '-y', 'ffmpeg']),
+                         ('yum', ['install', '-y', 'ffmpeg']), ('pacman', ['-S', '--noconfirm', 'ffmpeg']),
+                         ('apk', ['add', 'ffmpeg']), ('zypper', ['install', '-y', 'ffmpeg'])]:
+            if shutil.which(pm):
+                return ['sudo', pm] + pkgs
+    elif system == 'Darwin' and shutil.which('brew'):
+        return ['brew', 'install', 'ffmpeg']
+    elif system == 'Windows':
+        for pm, pkgs in [('winget', ['install', 'FFmpeg']), ('choco', ['install', '-y', 'ffmpeg']),
+                         ('scoop', ['install', 'ffmpeg'])]:
+            if shutil.which(pm):
+                return [pm] + pkgs
+    return None
 
 
 @app.context_processor
@@ -351,6 +368,38 @@ def free(port):
     app.config['API_KEY'] = None
     log_info(f"Server: http://127.0.0.1:{port}")
     socketio.run(app, host='0.0.0.0', port=port, debug=False)
+
+
+@cli.command()
+def install_ffmpeg():
+    """Detect system and auto-install FFmpeg."""
+    print_banner()
+    if shutil.which('ffmpeg') and shutil.which('ffprobe'):
+        log_success("FFmpeg is already installed!")
+        return
+
+    cmd = _detect_install_cmd()
+    if not cmd:
+        log_error("Could not detect package manager. Install FFmpeg manually:")
+        log_info("  Ubuntu/Debian: sudo apt install ffmpeg")
+        log_info("  Fedora: sudo dnf install ffmpeg")
+        log_info("  Arch: sudo pacman -S ffmpeg")
+        log_info("  macOS: brew install ffmpeg")
+        log_info("  Windows: winget install FFmpeg")
+        return
+
+    log_warning(f"About to run: {' '.join(cmd)}")
+    if click.confirm("Proceed with installation?", default=True):
+        try:
+            subprocess.run(cmd, check=True)
+            log_success("FFmpeg installed successfully!")
+        except subprocess.CalledProcessError:
+            log_error("Installation failed. Install FFmpeg manually.")
+        except FileNotFoundError:
+            log_error("sudo not available. Run manually:")
+            log_info(f"  {' '.join(cmd)}")
+    else:
+        log_info("Installation skipped.")
 
 
 if __name__ == '__main__':
