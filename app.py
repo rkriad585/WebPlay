@@ -65,6 +65,17 @@ def get_lan_ip():
     return '127.0.0.1'
 
 
+def get_public_url():
+    domain = os.environ.get('WEBPLAY_DOMAIN')
+    if domain:
+        return domain
+    fqdn = socket.getfqdn()
+    if fqdn and '.' in fqdn and not fqdn.startswith('localhost') and not fqdn.endswith('.local'):
+        if fqdn not in ('127.0.0.1', '::1'):
+            return fqdn
+    return None
+
+
 @app.context_processor
 def inject_globals():
     k = ('&key=' + request.args.get('key')) if request.args.get('key') else ''
@@ -364,27 +375,39 @@ def path(path):
     log_success(f"Media path: {path}")
 
 
+def _print_urls(port, key=None):
+    lan = get_lan_ip()
+    qs = f'?key={key}' if key else ''
+    log_info(f"Local:  http://127.0.0.1:{port}{qs}")
+    log_info(f"LAN:    http://{lan}:{port}{qs}")
+    public = get_public_url()
+    if public:
+        log_info(f"Domain: http://{public}:{port}{qs}")
+
+
 @cli.command()
 @click.option('--port', default=5000)
-def start(port):
+@click.option('--domain', envvar='WEBPLAY_DOMAIN', default=None, help='Public domain name')
+def start(port, domain):
     print_banner()
-    lan = get_lan_ip()
     key = secrets.token_urlsafe(16)
     app.config['API_KEY'] = key
-    log_info(f"Local:  http://127.0.0.1:{port}?key={key}")
-    log_info(f"LAN:    http://{lan}:{port}?key={key}")
+    if domain:
+        os.environ['WEBPLAY_DOMAIN'] = domain
+    _print_urls(port, key)
     log_warning("Copy key above.")
     socketio.run(app, host='0.0.0.0', port=port, debug=False)
 
 
 @cli.command()
 @click.option('--port', default=5000)
-def free(port):
+@click.option('--domain', envvar='WEBPLAY_DOMAIN', default=None, help='Public domain name')
+def free(port, domain):
     print_banner()
-    lan = get_lan_ip()
     app.config['API_KEY'] = None
-    log_info(f"Local:  http://127.0.0.1:{port}")
-    log_info(f"LAN:    http://{lan}:{port}")
+    if domain:
+        os.environ['WEBPLAY_DOMAIN'] = domain
+    _print_urls(port)
     socketio.run(app, host='0.0.0.0', port=port, debug=False)
 
 
