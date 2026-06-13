@@ -1,14 +1,13 @@
 import os
-import random
+import subprocess
 from datetime import datetime
 from rich.console import Console
-from rich.panel import Panel
-from rich.text import Text
-import pyfiglet
+from rich.style import Style
 
 console = Console()
 
 _LOG_FILE = None
+_BANNER_WIDTH = 43
 
 
 def set_log_file(path):
@@ -25,23 +24,67 @@ def _write_log(message):
             pass
 
 
-def print_banner():
-    """Prints the WebPlay ASCII Banner."""
-    fonts = ['slant', 'standard', 'doom', 'cybermedium']
+def _right_pad(text, width):
+    return text + ' ' * max(0, width - len(text))
+
+
+def _banner_line(content, width=_BANNER_WIDTH):
+    return '│ ' + _right_pad(content, width - 2) + ' │'
+
+
+def _get_git_commit():
     try:
-        f = pyfiglet.Figlet(font=random.choice(fonts))
-        banner = f.renderText('WebPlay')
-    except:
-        banner = "WebPlay"
-    
-    text = Text(banner, style="bold cyan")
-    console.print(text)
-    
-    console.print(Panel.fit(
-        "[bold green]Media Player & Streamer[/bold green]\n"
-        "[italic]Author: RKRIAD585[/italic]",
-        border_style="cyan"
-    ))
+        result = subprocess.run(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            capture_output=True, text=True, timeout=5,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return 'unknown'
+
+
+def _get_project_version():
+    try:
+        from importlib.metadata import version, PackageNotFoundError
+        try:
+            return version('webplay')
+        except PackageNotFoundError:
+            pass
+    except ImportError:
+        pass
+    version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.version')
+    if os.path.isfile(version_file):
+        with open(version_file) as f:
+            return f.read().strip()
+    return '0.0.0'
+
+
+def _make_banner(project='webplay', author='RK Riad Khan', repo='rkriad585/WebPlay'):
+    version = _get_project_version()
+    commit = _get_git_commit()
+    W = _BANNER_WIDTH
+
+    half = (W - len(project) - 2) // 2
+    top = '╭' + '─' * half + ' ' + project + ' ' + '─' * (W - half - len(project) - 3) + '╮'
+
+    lines = [
+        top,
+        _banner_line(f'Author : {author}'),
+        _banner_line(f'Version: {version}'),
+        _banner_line(f'Commit : {commit}'),
+        _banner_line(f'GitHub : {repo}'),
+        '╰' + '─' * (W - 2) + '╯',
+    ]
+    return '\n'.join(lines)
+
+
+def print_banner():
+    banner = _make_banner()
+    style = Style(color='cyan', bold=True)
+    console.print(banner, style=style, highlight=False)
 
 def log_info(message):
     console.print(f"[bold blue][INFO][/bold blue] {message}")
