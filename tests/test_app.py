@@ -34,10 +34,11 @@ def app(media_dir):
         'API_KEY': 'valid-key-123',
         'DATABASE_PATH': db_path,
     })
+    from core.db import init_db
     import app as app_module
     app_module.CURRENT_ROOT = media_dir
     app_module.Config.ensure_dirs()
-    app_module.init_db()
+    init_db(app.config['DATABASE_PATH'])
     yield app
     app.config['API_KEY'] = None
     if os.path.exists(db_path):

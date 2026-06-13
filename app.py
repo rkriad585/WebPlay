@@ -1,19 +1,18 @@
 import os
 import secrets
-import sqlite3
 import subprocess
 import signal
 import atexit
 import threading
 import select
 import click
-from contextlib import contextmanager
-from functools import wraps
 from flask import Flask, render_template, request, Response, send_file, jsonify, abort
 from flask_socketio import SocketIO, emit, join_room
 
 from core.utils import print_banner, log_info, log_success, log_error, log_warning
 from core.media import get_media_files, get_video_metadata, convert_srt_to_vtt, get_cached_thumbnail, save_thumbnail_to_cache
+from core.auth import require_auth, validate_media_path
+from core.db import get_db, init_db
 from config import Config
 
 app = Flask(__name__)
@@ -23,36 +22,16 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 ffmpeg_processes = []
 ffmpeg_lock = threading.Lock()
 
-@contextmanager
-def get_db():
-    conn = sqlite3.connect(app.config['DATABASE_PATH'])
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-def init_db():
-    with get_db() as conn:
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS playback (path TEXT PRIMARY KEY, time REAL, finished INTEGER)''')
-        conn.commit()
-
 Config.ensure_dirs()
-init_db()
+init_db(app.config['DATABASE_PATH'])
 CURRENT_ROOT = Config.load_settings()
 
-def require_auth(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        required_key = app.config.get('API_KEY')
-        if required_key:
-            auth_key = request.args.get('key')
-            if auth_key != required_key:
-                if request.path.startswith('/api/'):
-                    return jsonify(success=False, error="Unauthorized"), 403
-                return render_template('error.html'), 403
-        return f(*args, **kwargs)
-    return decorated
+
+@app.context_processor
+def inject_globals():
+    k = ('&key=' + request.args.get('key')) if request.args.get('key') else ''
+    return dict(k=k)
+
 
 def cleanup_ffmpeg():
     with ffmpeg_lock:
@@ -64,19 +43,10 @@ def cleanup_ffmpeg():
                 pass
         ffmpeg_processes.clear()
 
+
 atexit.register(cleanup_ffmpeg)
 signal.signal(signal.SIGTERM, lambda sig, frame: cleanup_ffmpeg())
 
-def _validate_media_path(path):
-    if not path:
-        return None
-    resolved = os.path.realpath(path)
-    root = os.path.realpath(CURRENT_ROOT)
-    if not resolved.startswith(root):
-        return None
-    if not os.path.exists(resolved):
-        return None
-    return resolved
 
 @app.route('/')
 @require_auth
@@ -118,10 +88,11 @@ def index():
     return render_template('index.html', media=media, view=view_mode, mode=browse_mode,
                            target_folder_name=os.path.basename(target_folder) if target_folder else "Library", root=CURRENT_ROOT)
 
+
 @app.route('/player')
 @require_auth
 def player():
-    file_path = _validate_media_path(request.args.get('path'))
+    file_path = validate_media_path(request.args.get('path'), CURRENT_ROOT)
     if not file_path: return "File not found", 404
 
     meta = get_video_metadata(file_path)
@@ -130,7 +101,7 @@ def player():
 
     start_time = 0
     try:
-        with get_db() as conn:
+        with get_db(app.config['DATABASE_PATH']) as conn:
             c = conn.cursor()
             c.execute("SELECT time FROM playback WHERE path=?", (file_path,))
             row = c.fetchone()
@@ -151,15 +122,17 @@ def player():
     return render_template('player.html', path=file_path, meta=meta, has_sub=has_sub,
                            start_time=start_time, filename=fname, next_video=next_video)
 
+
 @app.route('/remote')
 @require_auth
 def remote_ui():
     return render_template('remote.html')
 
+
 @app.route('/stream')
 @require_auth
 def stream():
-    path = _validate_media_path(request.args.get('path'))
+    path = validate_media_path(request.args.get('path'), CURRENT_ROOT)
     audio_idx = request.args.get('audio_index', default=0, type=int)
     if not path: abort(404)
 
@@ -219,10 +192,11 @@ def stream():
                         pass
         return Response(generate(), mimetype='video/mp4')
 
+
 @app.route('/thumbnail')
 @require_auth
 def thumbnail():
-    path = _validate_media_path(request.args.get('path'))
+    path = validate_media_path(request.args.get('path'), CURRENT_ROOT)
     timestamp = request.args.get('t', '00:00:10')
     if not path: return "", 404
 
@@ -244,14 +218,16 @@ def thumbnail():
     except Exception:
         return "", 404
 
+
 @app.route('/subtitle')
 @require_auth
 def get_subtitle():
-    path = _validate_media_path(request.args.get('path'))
+    path = validate_media_path(request.args.get('path'), CURRENT_ROOT)
     if not path: return "", 404
     base = os.path.splitext(path)[0]
     if os.path.exists(base+'.srt'): return Response(convert_srt_to_vtt(base+'.srt'), mimetype='text/vtt')
     return "", 404
+
 
 @app.route('/api/save_progress', methods=['POST'])
 @require_auth
@@ -264,17 +240,18 @@ def save_progress():
     if not file_path or play_time is None:
         return jsonify(success=False, error="Missing path or time"), 400
     try:
-        with get_db() as conn:
+        with get_db(app.config['DATABASE_PATH']) as conn:
             conn.execute("INSERT OR REPLACE INTO playback (path, time, finished) VALUES (?, ?, 0)", (file_path, play_time))
     except Exception:
         return jsonify(success=False, error="Database error"), 500
     return jsonify(success=True)
 
+
 @app.route('/api/rename', methods=['POST'])
 @require_auth
 def rename_file():
     data = request.json
-    old_path = _validate_media_path(data.get('old_path') if data else None)
+    old_path = validate_media_path(data.get('old_path') if data else None, CURRENT_ROOT)
     new_name_raw = data.get('new_name') if data else None
     if not old_path or not new_name_raw:
         return jsonify(success=False), 400
@@ -294,6 +271,7 @@ def rename_file():
         log_error(f"Rename failed: {e}")
         return jsonify(success=False, message="Rename failed"), 500
 
+
 @socketio.on('connect')
 def on_connect():
     required_key = app.config.get('API_KEY')
@@ -302,6 +280,7 @@ def on_connect():
         if not key or key != required_key:
             return False
 
+
 @socketio.on('join')
 def on_join(data):
     if not data or 'room' not in data:
@@ -309,16 +288,19 @@ def on_join(data):
     room = data['room']
     join_room(room)
 
+
 @socketio.on('remote_cmd')
 def handle_remote(data):
     if not data or 'room' not in data or 'action' not in data:
         return
     emit('player_event', data, to=data['room'])
 
+
 @click.group()
 def cli():
     """WebPlay: Media Player"""
     pass
+
 
 @cli.command()
 @click.argument('path', type=click.Path(exists=True))
@@ -326,6 +308,7 @@ def path(path):
     Config.save_settings(os.path.abspath(path))
     print_banner()
     log_success(f"Media path: {path}")
+
 
 @cli.command()
 @click.option('--port', default=5000)
@@ -337,6 +320,7 @@ def start(port):
     log_warning("Copy key above.")
     socketio.run(app, host='0.0.0.0', port=port, debug=False)
 
+
 @cli.command()
 @click.option('--port', default=5000)
 def free(port):
@@ -344,6 +328,7 @@ def free(port):
     app.config['API_KEY'] = None
     log_info(f"Server: http://127.0.0.1:{port}")
     socketio.run(app, host='0.0.0.0', port=port, debug=False)
+
 
 if __name__ == '__main__':
     cli()
