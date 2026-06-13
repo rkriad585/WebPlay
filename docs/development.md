@@ -7,14 +7,18 @@ git clone https://github.com/rkriad585/WebPlay.git
 cd WebPlay
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip install -e .
 ```
+
+The `-e` flag installs in editable mode, so changes to the source code
+are immediately reflected when running `webplay`.
 
 ## Project Architecture
 
 ```
 WebPlay/
-  app.py               # Flask routes, WebSocket, streaming, CLI
+  app.py               # Flask routes, WebSocket, streaming
+  cli.py               # CLI entry point (webplay command)
   config.py            # TOML config loader/writer
   core/
     auth.py            # @require_auth decorator, path validation
@@ -30,7 +34,7 @@ WebPlay/
 ## Running in Development
 
 ```bash
-python app.py free --port 5000
+webplay free --port 5000
 ```
 
 The server auto-reloads in debug mode if you set `FLASK_DEBUG=1`.
@@ -56,7 +60,6 @@ require FFmpeg (dummy files are used).
 1. Add the route function in `app.py`.
 2. Decorate with `@require_auth` for auth protection.
 3. Call `validate_media_path()` for any file path parameter.
-4. Update the routes table in AGENTS.md.
 
 ## Database
 

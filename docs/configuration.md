@@ -7,7 +7,7 @@ WebPlay stores configuration in `~/.config/neostore/webplay/config.toml`.
 Use `--config <path>` to use a custom config file:
 
 ```bash
-python app.py start --config /path/to/config.toml
+webplay start --config /path/to/config.toml
 ```
 
 ## Config File Format
@@ -69,7 +69,7 @@ crf = 28
 Flags take precedence over config file and environment variables:
 
 ```bash
-python app.py start --port 8080 --domain example.com
+webplay start --port 8080 --domain example.com
 ```
 
 ## API Key
@@ -78,7 +78,7 @@ The API key is generated on `start` and saved to
 `~/.config/neostore/webplay/.webplay_key.txt`. Recover it with:
 
 ```bash
-python app.py key
+webplay key
 ```
 
 ## Data Directory

@@ -2,6 +2,17 @@
 
 ## Common Issues
 
+### `webplay: command not found`
+
+**Symptom:** The `webplay` command is not available after installation.
+
+**Fix:**
+- Ensure the pip bin directory is in your PATH:
+  ```bash
+  export PATH="$PATH:$(python3 -c 'import sysconfig; print(sysconfig.get_path(\"scripts\"))')"
+  ```
+- Or reinstall: `pip install -e .`
+
 ### FFmpeg not found
 
 **Error:** Metadata probes fail, thumbnails return 404, streams are empty.
@@ -9,7 +20,7 @@
 **Fix:** Install FFmpeg:
 
 ```bash
-python app.py install-ffmpeg
+webplay install-ffmpeg
 ```
 
 Or manually install it for your OS.
@@ -20,8 +31,8 @@ Or manually install it for your OS.
 
 **Fix:**
 1. Check the key in the URL matches the printed key.
-2. Recover the saved key: `python app.py key`
-3. Restart with a new key: `python app.py start`
+2. Recover the saved key: `webplay key`
+3. Restart with a new key: `webplay start`
 
 ### Port already in use
 
@@ -29,7 +40,7 @@ Or manually install it for your OS.
 
 **Fix:** Use a different port:
 ```bash
-python app.py free --port 8080
+webplay free --port 8080
 ```
 
 Or kill the existing process:
@@ -47,9 +58,9 @@ taskkill /PID <PID> /F
 **Symptom:** Gallery is empty.
 
 **Checks:**
-1. Is the media path set? `python app.py path /correct/path`
+1. Is the media path set? `webplay path /correct/path`
 2. Does the path contain video/audio files?
-3. Are the file permissions correct (readable by the webplay user)?
+3. Are the file permissions correct (readable)?
 
 ### Database errors
 

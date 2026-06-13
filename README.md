@@ -20,42 +20,73 @@ to any device on your network via a web browser.
 - Search and filter
 - Secured mode with API key authentication
 
-## Installation
+## Quick Install
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.sh | sh
+```
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.ps1 | iex
+```
+
+After install, the `webplay` command is available globally.
 
 ### Prerequisites
 
 - Python 3.11+
-- FFmpeg (system dependency)
+- FFmpeg (the installer will guide you)
 
-### Quick Start
+### Manual Installation
 
 ```bash
 git clone https://github.com/rkriad585/WebPlay.git
 cd WebPlay
-pip install -r requirements.txt
-python app.py path /path/to/media
-python app.py start
+pip install -e .
 ```
-
-Visit the URL printed in the terminal.
 
 ## Usage
 
 ```bash
 # Set media directory
-python app.py path /path/to/media
+webplay path /path/to/media
 
 # Start with API key (secured mode)
-python app.py start
+webplay start
 
 # Start without authentication (LAN)
-python app.py free
+webplay free
 
 # Custom port
-python app.py free --port 8080
+webplay free --port 8080
 
 # Custom config file
-python app.py start --config /path/to/config.toml
+webplay start --config /path/to/config.toml
+```
+
+## Uninstall
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.sh | sh -s -- --selfuninstall
+```
+
+### Windows (PowerShell)
+
+```powershell
+Invoke-RestMethod -Uri "https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.ps1" | Invoke-Expression -ArgumentList "--selfuninstall"
+```
+
+Or manually:
+
+```bash
+pip uninstall webplay
+rm -rf ~/.config/neostore/webplay
 ```
 
 ## Configuration
@@ -135,9 +166,17 @@ docker compose up -d
 ```
 WebPlay/
   app.py              # Flask application entry point
+  cli.py              # CLI entry point (webplay command)
   config.py           # TOML configuration loader
+  pyproject.toml      # Project metadata and build config
   requirements.txt    # Python dependencies
-  .version            # Version file (v0.156.36)
+  .version            # Version file
+  installer.sh        # Linux/macOS installer
+  installer.ps1       # Windows installer
+  build.sh            # Linux/macOS build script
+  build.ps1           # Windows build script
+  Makefile            # Build automation
+  Dockerfile          # Docker image
   core/
     auth.py           # Authentication and path validation
     db.py             # SQLite database helpers

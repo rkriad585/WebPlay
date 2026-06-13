@@ -10,6 +10,23 @@ to any device on your network.
 - [Usage Guide](usage.md) — How to use WebPlay
 - [Configuration](configuration.md) — Configuration options
 
+## Quick Install
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.sh | sh
+```
+
+### Windows
+
+```powershell
+irm https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.ps1 | iex
+```
+
+After install, run `webplay path /path/to/media` to set your media folder,
+then `webplay start` to begin streaming.
+
 ## Reference
 
 - [CLI Reference](cli.md) — Command-line interface

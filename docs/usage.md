@@ -4,13 +4,13 @@
 
 ```bash
 # Secured mode
-python app.py start
+webplay start
 
 # Free mode (no auth)
-python app.py free
+webplay free
 
 # Custom port
-python app.py free --port 8080
+webplay free --port 8080
 ```
 
 ## Gallery Views

@@ -17,7 +17,7 @@ WebPlay uses a Click-based command-line interface. All commands accept
 Set the media directory path.
 
 ```bash
-python app.py path /path/to/media
+webplay path /path/to/media
 ```
 
 ### `start`
@@ -25,10 +25,10 @@ python app.py path /path/to/media
 Start the server in secured mode with a random API key.
 
 ```bash
-python app.py start
-python app.py start --port 8080
-python app.py start --domain example.com
-python app.py start --config /custom/config.toml
+webplay start
+webplay start --port 8080
+webplay start --domain example.com
+webplay start --config /custom/config.toml
 ```
 
 ### `free`
@@ -36,8 +36,8 @@ python app.py start --config /custom/config.toml
 Start the server in open mode (no authentication).
 
 ```bash
-python app.py free
-python app.py free --port 8080
+webplay free
+webplay free --port 8080
 ```
 
 ### `key`
@@ -45,7 +45,7 @@ python app.py free --port 8080
 Print the saved API key.
 
 ```bash
-python app.py key
+webplay key
 ```
 
 ### `install-ffmpeg`
@@ -53,7 +53,7 @@ python app.py key
 Auto-detect the operating system and install FFmpeg.
 
 ```bash
-python app.py install-ffmpeg
+webplay install-ffmpeg
 ```
 
 Supported package managers: `apt`, `dnf`, `yum`, `pacman`, `apk`,
@@ -73,3 +73,31 @@ Public domain name for external URL display.
 
 Path to a custom TOML config file. Default:
 `~/.config/neostore/webplay/config.toml`.
+
+## One-Line Install
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.sh | sh
+```
+
+### Windows
+
+```powershell
+irm https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.ps1 | iex
+```
+
+## Uninstall
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.sh | sh -s -- --selfuninstall
+```
+
+### Windows
+
+```powershell
+Invoke-RestMethod -Uri "https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.ps1" | Invoke-Expression -ArgumentList "--selfuninstall"
+```

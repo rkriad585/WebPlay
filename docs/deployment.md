@@ -19,6 +19,16 @@ docker run -d \
   webplay
 ```
 
+## One-Click Install (Non-Docker)
+
+For direct deployment on a server:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rkriad585/WebPlay/main/installer.sh | sh
+webplay path /path/to/media
+webplay start
+```
+
 ## Docker Compose (Production)
 
 ```yaml
@@ -86,7 +96,7 @@ After=network.target
 Type=simple
 User=webplay
 WorkingDirectory=/opt/webplay
-ExecStart=/usr/bin/python /opt/webplay/app.py start --port 5000
+ExecStart=/usr/local/bin/webplay start --port 5000
 Restart=on-failure
 RestartSec=5
 
